@@ -114,8 +114,8 @@ def test_deduplicate_env_keeps_first_arrival():
 
 # ---------- occupancy_audit ----------
 
-def test_occupancy_audit_counts_problems():
-    occ = _occ(
+def _problem_occ():
+    return _occ(
         [
             ["A", "CurrentlyOccupied", 2, "2024-01-01 09:00"],
             ["A", "CurrentlyOccupied", 2, "2024-01-01 09:00"],  # exact duplicate
@@ -124,13 +124,16 @@ def test_occupancy_audit_counts_problems():
             ["A", "Bogus", 0, "2024-01-01 09:04"],  # unknown status, unsorted
         ]
     )
-    rep = occupancy_audit(occ)
-    assert rep["n_rows"] == 5
-    assert rep["n_exact_duplicates"] == 1
-    assert rep["n_negative_headcount"] == 1
-    assert rep["n_unknown_status"] == 1
-    assert rep["n_status_contradiction"] == 1
-    assert rep["n_unsorted"] == 1
+
+
+@pytest.mark.parametrize(
+    "key, expected",
+    [("n_rows", 5), ("n_exact_duplicates", 1), ("n_negative_headcount", 1),
+     ("n_unknown_status", 1), ("n_status_contradiction", 1), ("n_unsorted", 1)],
+)
+def test_occupancy_audit_counts_each_problem(key, expected):
+    # One planted problem of each kind; each count is checked separately.
+    assert occupancy_audit(_problem_occ())[key] == expected
 
 
 def test_occupancy_audit_clean_data_has_no_problems():

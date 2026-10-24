@@ -150,11 +150,16 @@ def bootstrap_mae_diff(
     g = np.asarray(groups)
     if g.shape != t.shape:
         raise ValueError("groups must have the same length as y_true")
+    # Same idea as the Week 5.5 bootstrap of MAE, with two changes:
+    # (1) resample the per-row DIFFERENCE in absolute error between the two
+    #     models, so the interval is for "how much better is A than B";
+    # (2) resample whole days rather than single hours, because errors in
+    #     neighbouring hours are correlated (an unusual day is unusual all day).
     diff = np.abs(a - t) - np.abs(b - t)
-    codes, uniq = pd.factorize(g)
-    sums = np.bincount(codes, weights=diff)
-    counts = np.bincount(codes)
+    codes, uniq = pd.factorize(g)  # day label -> integer 0..n_days-1
+    sums = np.bincount(codes, weights=diff)  # total difference per day
+    counts = np.bincount(codes)  # rows per day
     rng = np.random.default_rng(seed)
-    pick = rng.integers(0, len(uniq), size=(n_boot, len(uniq)))
-    stats = sums[pick].sum(axis=1) / counts[pick].sum(axis=1)
+    pick = rng.integers(0, len(uniq), size=(n_boot, len(uniq)))  # days drawn with replacement
+    stats = sums[pick].sum(axis=1) / counts[pick].sum(axis=1)  # mean difference per resample
     return float(diff.mean()), float(np.percentile(stats, 2.5)), float(np.percentile(stats, 97.5))

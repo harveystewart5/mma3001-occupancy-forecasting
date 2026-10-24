@@ -93,9 +93,6 @@
             <li>
                     <a class="function" href="#time_split">time_split</a>
             </li>
-            <li>
-                    <a class="function" href="#one_hot_space">one_hot_space</a>
-            </li>
     </ul>
 
 
@@ -284,22 +281,6 @@ missing instead of silently pulling in a value from a different hour.</p>
 </span><span id="L-149"><a href="#L-149"><span class="linenos">149</span></a>    <span class="n">val</span> <span class="o">=</span> <span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s2">"bin"</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">v</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">"bin"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">t</span><span class="p">)]</span>
 </span><span id="L-150"><a href="#L-150"><span class="linenos">150</span></a>    <span class="n">test</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s2">"bin"</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">t</span><span class="p">]</span>
 </span><span id="L-151"><a href="#L-151"><span class="linenos">151</span></a>    <span class="k">return</span> <span class="n">train</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">test</span>
-</span><span id="L-152"><a href="#L-152"><span class="linenos">152</span></a>
-</span><span id="L-153"><a href="#L-153"><span class="linenos">153</span></a>
-</span><span id="L-154"><a href="#L-154"><span class="linenos">154</span></a><span class="k">def</span><span class="w"> </span><span class="nf">one_hot_space</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">spaces</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-</span><span id="L-155"><a href="#L-155"><span class="linenos">155</span></a><span class="w">    </span><span class="sd">"""One-hot encode the space ID against a fixed list of known spaces.</span>
-</span><span id="L-156"><a href="#L-156"><span class="linenos">156</span></a>
-</span><span id="L-157"><a href="#L-157"><span class="linenos">157</span></a><span class="sd">    An unseen space encodes as all zeros, so models can still be applied to</span>
-</span><span id="L-158"><a href="#L-158"><span class="linenos">158</span></a><span class="sd">    it (used for the leave-one-space-out test).</span>
-</span><span id="L-159"><a href="#L-159"><span class="linenos">159</span></a>
-</span><span id="L-160"><a href="#L-160"><span class="linenos">160</span></a><span class="sd">    Args:</span>
-</span><span id="L-161"><a href="#L-161"><span class="linenos">161</span></a><span class="sd">        df: Table with a ``space`` column.</span>
-</span><span id="L-162"><a href="#L-162"><span class="linenos">162</span></a><span class="sd">        spaces: Ordered list of known space IDs.</span>
-</span><span id="L-163"><a href="#L-163"><span class="linenos">163</span></a>
-</span><span id="L-164"><a href="#L-164"><span class="linenos">164</span></a><span class="sd">    Returns:</span>
-</span><span id="L-165"><a href="#L-165"><span class="linenos">165</span></a><span class="sd">        Array of shape (len(df), len(spaces)).</span>
-</span><span id="L-166"><a href="#L-166"><span class="linenos">166</span></a><span class="sd">    """</span>
-</span><span id="L-167"><a href="#L-167"><span class="linenos">167</span></a>    <span class="k">return</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">"space"</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">spaces</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -679,55 +660,6 @@ missing instead of silently pulling in a value from a different hour.</p>
 <ul>
 <li><strong>ValueError:</strong>  If <code>val_start</code> is not before <code>test_start</code>.</li>
 </ul>
-</div>
-
-
-                </section>
-                <section id="one_hot_space">
-                            <input id="one_hot_space-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">one_hot_space</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">df</span><span class="p">:</span> <span class="n">pandas</span><span class="o">.</span><span class="n">DataFrame</span>, </span><span class="param"><span class="n">spaces</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span></span><span class="return-annotation">) -> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span>:</span></span>
-
-                <label class="view-source-button" for="one_hot_space-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#one_hot_space"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="one_hot_space-155"><a href="#one_hot_space-155"><span class="linenos">155</span></a><span class="k">def</span><span class="w"> </span><span class="nf">one_hot_space</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">spaces</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-</span><span id="one_hot_space-156"><a href="#one_hot_space-156"><span class="linenos">156</span></a><span class="w">    </span><span class="sd">"""One-hot encode the space ID against a fixed list of known spaces.</span>
-</span><span id="one_hot_space-157"><a href="#one_hot_space-157"><span class="linenos">157</span></a>
-</span><span id="one_hot_space-158"><a href="#one_hot_space-158"><span class="linenos">158</span></a><span class="sd">    An unseen space encodes as all zeros, so models can still be applied to</span>
-</span><span id="one_hot_space-159"><a href="#one_hot_space-159"><span class="linenos">159</span></a><span class="sd">    it (used for the leave-one-space-out test).</span>
-</span><span id="one_hot_space-160"><a href="#one_hot_space-160"><span class="linenos">160</span></a>
-</span><span id="one_hot_space-161"><a href="#one_hot_space-161"><span class="linenos">161</span></a><span class="sd">    Args:</span>
-</span><span id="one_hot_space-162"><a href="#one_hot_space-162"><span class="linenos">162</span></a><span class="sd">        df: Table with a ``space`` column.</span>
-</span><span id="one_hot_space-163"><a href="#one_hot_space-163"><span class="linenos">163</span></a><span class="sd">        spaces: Ordered list of known space IDs.</span>
-</span><span id="one_hot_space-164"><a href="#one_hot_space-164"><span class="linenos">164</span></a>
-</span><span id="one_hot_space-165"><a href="#one_hot_space-165"><span class="linenos">165</span></a><span class="sd">    Returns:</span>
-</span><span id="one_hot_space-166"><a href="#one_hot_space-166"><span class="linenos">166</span></a><span class="sd">        Array of shape (len(df), len(spaces)).</span>
-</span><span id="one_hot_space-167"><a href="#one_hot_space-167"><span class="linenos">167</span></a><span class="sd">    """</span>
-</span><span id="one_hot_space-168"><a href="#one_hot_space-168"><span class="linenos">168</span></a>    <span class="k">return</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">"space"</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">spaces</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
-</span></pre></div>
-
-
-            <div class="docstring"><p>One-hot encode the space ID against a fixed list of known spaces.</p>
-
-<p>An unseen space encodes as all zeros, so models can still be applied to
-it (used for the leave-one-space-out test).</p>
-
-<h6 id="arguments">Arguments:</h6>
-
-<ul>
-<li><strong>df:</strong>  Table with a <code>space</code> column.</li>
-<li><strong>spaces:</strong>  Ordered list of known space IDs.</li>
-</ul>
-
-<h6 id="returns">Returns:</h6>
-
-<blockquote>
-  <p>Array of shape (len(df), len(spaces)).</p>
-</blockquote>
 </div>
 
 

@@ -198,12 +198,13 @@ def estimate_occupancy(c: np.ndarray, h: float, g: float, lam: float, c_base: fl
 def simulate_fast(
     n: np.ndarray, g: float, lam: float, h: float, y0: float = 0.0, dtype=np.float64
 ) -> np.ndarray:
-    """Backward Euler via a compiled linear recurrence (performance version).
+    """Backward Euler with the time loop run in compiled code (performance version).
 
-    The backward Euler update y_{k+1} = a y_k + b N_k with a = 1/(1 + h lam)
-    and b = h g / (1 + h lam) is a first-order linear recurrence (an IIR
-    filter). ``scipy.signal.lfilter`` evaluates it in compiled C, removing the
-    Python interpreter overhead of `simulate`. Same arithmetic, same answer.
+    The backward Euler update can be written y_{k+1} = a y_k + b N_k with
+    a = 1/(1 + h lam) and b = h g / (1 + h lam): each value is a fixed multiple
+    of the previous one plus a multiple of the input. ``scipy.signal.lfilter``
+    is a SciPy routine that runs exactly this kind of loop in C, so it does the
+    same arithmetic as `simulate` without Python's per-iteration overhead.
 
     Args:
         n: Occupancy per step, length K.

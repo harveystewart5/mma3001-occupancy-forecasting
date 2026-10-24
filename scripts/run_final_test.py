@@ -78,6 +78,28 @@ def main() -> None:
     sp_tab.to_csv(RES / "final_test_by_space.csv")
     log.info("By space:\n%s", sp_tab.round(3).to_string())
 
+    # ---- Engineering interpretation: HVAC set-back decisions ----
+    # A fixed timetable runs HVAC 07:00-19:00 on weekdays. A forecast-driven
+    # controller would set back any timetabled hour forecast to have < 0.5
+    # people on average. How many truly empty hours would it save, and how
+    # often would it wrongly set back an occupied hour?
+    timetabled = ((test["dow"] < 5) & test["hour"].between(7, 18)).to_numpy()
+    empty = y < 0.5
+    hvac = []
+    for name in ["Persistence", "Neural network (MLP)"]:
+        setback = preds[name] < 0.5
+        hvac.append({
+            "model": name,
+            "timetabled_hours": int(timetabled.sum()),
+            "truly_empty_hours": int((timetabled & empty).sum()),
+            "empty_hours_correctly_set_back": int((timetabled & empty & setback).sum()),
+            "occupied_hours_wrongly_set_back": int((timetabled & ~empty & setback).sum()),
+            "occupied_hours": int((timetabled & ~empty).sum()),
+        })
+    hvac = pd.DataFrame(hvac)
+    hvac.to_csv(RES / "final_test_hvac_setback.csv", index=False)
+    log.info("HVAC set-back interpretation:\n%s", hvac.to_string(index=False))
+
     # ---- Figures ----
     style()
     # 1. An example teaching week in G.20

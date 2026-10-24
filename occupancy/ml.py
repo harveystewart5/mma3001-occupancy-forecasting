@@ -19,7 +19,8 @@ Predictions are clipped at 0 because headcount cannot be negative.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -99,10 +100,9 @@ class Candidate:
     """
 
     name: str
-    build: callable
+    build: Callable[[dict], Pipeline]
     grid: list[dict]
     max_train_rows: int | None = None
-    cv_results: list[dict] = field(default_factory=list)
 
 
 def candidates(seed: int = 0) -> list[Candidate]:
