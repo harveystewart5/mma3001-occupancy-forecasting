@@ -1,0 +1,43 @@
+{
+  "Ridge regression": {
+    "fit_s": 0.04547731100001329,
+    "predict_s": 0.012547385000061695,
+    "params": {
+      "alpha": 0.1
+    }
+  },
+  "Decision tree": {
+    "fit_s": 0.2793755029999829,
+    "predict_s": 0.013565734999929191,
+    "params": {
+      "max_depth": 14,
+      "min_samples_leaf": 100
+    }
+  },
+  "k-nearest neighbours": {
+    "fit_s": 0.03691742799992426,
+    "predict_s": 1.1112413680000373,
+    "params": {
+      "n_neighbors": 20
+    }
+  },
+  "RBF SVR": {
+    "fit_s": 0.4231589870000789,
+    "predict_s": 1.1350967660000606,
+    "params": {
+      "C": 1.0,
+      "epsilon": 0.1,
+      "gamma": "scale"
+    }
+  },
+  "Neural network (MLP)": {
+    "fit_s": 4.012018979000004,
+    "predict_s": 0.020521797999890623,
+    "params": {
+      "hidden_layer_sizes": [
+        32
+      ],
+      "alpha": 0.01
+    }
+  }
+}
