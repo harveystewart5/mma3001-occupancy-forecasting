@@ -97,7 +97,10 @@ def event_intervals(
         np.where(occ["headcount"].to_numpy() > 0, max_hold_occupied, max_hold_empty),
         index=occ.index,
     ).astype("timedelta64[ns]")
-    end = np.minimum(nxt, occ["t"] + hold)
+    cap = occ["t"] + hold
+    # Explicit choice rather than np.minimum: np.minimum(NaT, x) returns x,
+    # which would extend the final event of each space into the future.
+    end = nxt.where(nxt <= cap, cap).where(nxt.notna())
     out = pd.DataFrame(
         {"space": occ["space"], "start": occ["t"], "end": end, "headcount": occ["headcount"]}
     )
