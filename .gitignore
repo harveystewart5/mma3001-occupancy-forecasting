@@ -225,3 +225,4 @@ data/raw/*.csv
 data/raw/*.xlsx
 data/processed/*.duckdb
 data/processed/*.parquet
+report/report.html

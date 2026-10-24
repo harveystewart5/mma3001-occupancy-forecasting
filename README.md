@@ -9,6 +9,8 @@ whether a CO₂ mass-balance ODE can estimate occupancy from a CO₂ sensor.
 9.1 M occupancy events from 5 spaces (Nov 2023 – Apr 2026) and CO₂ readings from 5
 environmental sensors.
 
+**Report:** [`report/MMA3001_Project_Report_Harvey.pdf`](report/MMA3001_Project_Report_Harvey.pdf)
+
 **Main result (held-out test, Nov 2025 – Apr 2026):** a small neural network (MLP) predicts
 next-hour headcount with MAE 0.283 people vs 0.298 for the best baseline (persistence);
 RMSE 0.83 vs 0.98; R² 0.51 vs 0.32. The improvement is statistically significant (day-block
@@ -51,6 +53,7 @@ mma3001-occupancy/
 │   └── test_report.html     # pytest-html test report
 ├── data/raw/                # place the supplied data here (not committed, 1.9 GB)
 ├── data/processed/          # intermediate parquet files (generated, not committed)
+├── report/                  # project report: REPORT.md source, PDF and DOCX, build_report.sh
 ├── requirements.txt
 └── LICENSE                  # MIT
 ```
