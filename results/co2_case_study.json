@@ -1,0 +1,30 @@
+{
+  "n_10min_bins": 15191,
+  "co2_coverage_raw": 0.9084326245803436,
+  "co2_coverage_after_pchip": 1.0,
+  "c_base_ppm": 429.0,
+  "weekend_median_ppm": 450.0,
+  "n_decay_nights": 75,
+  "lam_night_per_h": 0.041024012953785924,
+  "lam_night_iqr_per_h": [
+    0.009767302445934408,
+    0.08044018307458396
+  ],
+  "decay_lstsq_cond_median_t_in_s": 41234.029236745395,
+  "decay_lstsq_cond_median_t_in_h": 11.709271682997045,
+  "n_train_days": 43,
+  "n_test_days": 31,
+  "lam_day_per_h": 0.9500000000000001,
+  "g_ppm_per_h_per_person": 41.41946168956677,
+  "h_lam_day": 0.15833333333333335,
+  "forward_euler_stable_limit_h_s": 7578.947368421052,
+  "implied_volume_m3": 451.9614508827722,
+  "test_rmse_ppm": 38.14772678826055,
+  "test_rmse_ppm_no_occupancy": 81.84515537401829,
+  "test_r2": 0.39316630256460416,
+  "inverse_corr_hourly": 0.6255486836723525,
+  "inverse_corr_work_hours": 0.5263673053858557,
+  "inverse_mae_hourly": 0.6662145401399712,
+  "inverse_est_std_10min": 1.3187849309300423,
+  "noise_std_ppm_est": 8.254476996170414
+}
