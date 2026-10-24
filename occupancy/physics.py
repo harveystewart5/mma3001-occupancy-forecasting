@@ -31,6 +31,7 @@ Time stepping with step h and forcing N_k held constant over the step:
 from __future__ import annotations
 
 import numpy as np
+from scipy.signal import lfilter
 
 
 def _check_params(g: float, lam: float, h: float) -> None:
@@ -192,3 +193,38 @@ def estimate_occupancy(c: np.ndarray, h: float, g: float, lam: float, c_base: fl
     c = np.asarray(c, dtype=float)
     dcdt = np.gradient(c, h)
     return (dcdt + lam * (c - c_base)) / g
+
+
+def simulate_fast(
+    n: np.ndarray, g: float, lam: float, h: float, y0: float = 0.0, dtype=np.float64
+) -> np.ndarray:
+    """Backward Euler via a compiled linear recurrence (performance version).
+
+    The backward Euler update y_{k+1} = a y_k + b N_k with a = 1/(1 + h lam)
+    and b = h g / (1 + h lam) is a first-order linear recurrence (an IIR
+    filter). ``scipy.signal.lfilter`` evaluates it in compiled C, removing the
+    Python interpreter overhead of `simulate`. Same arithmetic, same answer.
+
+    Args:
+        n: Occupancy per step, length K.
+        g: Generation per person [ppm/s/person].
+        lam: Air-exchange rate [1/s].
+        h: Time step [s].
+        y0: Initial excess [ppm].
+        dtype: ``np.float64`` (default) or ``np.float32`` for the precision study.
+
+    Returns:
+        Array of length K + 1 in the requested dtype.
+
+    Raises:
+        ValueError: On invalid parameters or negative occupancy.
+    """
+    _check_params(g, lam, h)
+    n = np.asarray(n, dtype=dtype)
+    if np.any(n < 0):
+        raise ValueError("Occupancy must be non-negative")
+    a = dtype(1.0 / (1.0 + h * lam))
+    b = dtype(h * g) * a
+    # y_{k+1} - a y_k = b N_k ; initial condition carries y0 into the filter state.
+    body, _ = lfilter([b], [dtype(1.0), -a], n, zi=np.array([a * dtype(y0)], dtype=dtype))
+    return np.concatenate([np.array([y0], dtype=dtype), body.astype(dtype)])
