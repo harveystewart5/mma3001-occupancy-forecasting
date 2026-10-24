@@ -34,7 +34,7 @@ bootstrap 95% CI excludes 0) but modest, and the model under-predicts the busies
 ```
 mma3001-occupancy/
 ├── occupancy/               # Python package (all reusable code, Google-style docstrings)
-│   ├── loaders.py           # read raw CSVs (DuckDB streaming), parse JSON payloads
+│   ├── loaders.py           # read raw CSVs (pandas), parse JSON payloads
 │   ├── audit.py             # frozen sensors, duplicates, outages, integrity checks
 │   ├── resample.py          # event stream -> time-weighted hourly headcount
 │   ├── features.py          # prediction contract: calendar + lag features, time split

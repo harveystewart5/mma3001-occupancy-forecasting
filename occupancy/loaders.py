@@ -1,8 +1,7 @@
 """Read the raw Dataset 2 exports into tidy pandas tables.
 
-The occupancy CSV is ~1.6 GB (9.1 M rows), too large to load comfortably with
-``pandas.read_csv``. DuckDB, an in-process SQL engine, streams the file from
-disk and only materialises the columns we ask for.
+The occupancy CSV is ~1.6 GB (9.1 M rows). ``pandas.read_csv`` with
+``usecols`` reads only the four columns needed, which keeps memory to a few GB.
 
 Input format (occupancy CSV, one row per *change* of state):
 
@@ -32,7 +31,6 @@ import json
 import logging
 from pathlib import Path
 
-import duckdb
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -78,22 +76,16 @@ def load_occupancy(csv_path: str | Path) -> pd.DataFrame:
         ValueError: If a required column is missing from the file.
     """
     p = _check_file(csv_path)
-    con = duckdb.connect()
-    header = con.sql(f"select * from read_csv_auto('{p}') limit 0").columns
+    header = pd.read_csv(p, nrows=0).columns
     missing = set(OCC_COLUMNS) - set(header)
     if missing:
         raise ValueError(f"Occupancy file missing columns: {sorted(missing)}")
-    df = con.sql(
-        f"""
-        select floorspaceid as space,
-               occupancystatus as status,
-               cast(headcount as bigint) as headcount,
-               cast(collecteddate as timestamptz) as t
-        from read_csv_auto('{p}')
-        order by space, t
-        """
-    ).df()
-    df["t"] = pd.to_datetime(df["t"], utc=True)
+    df = pd.read_csv(p, usecols=list(OCC_COLUMNS), dtype={"headcount": "int64"})
+    df = df.rename(columns={"floorspaceid": "space", "occupancystatus": "status", "collecteddate": "t"})
+    # Timestamps carry +10:00 / +11:00 offsets (daylight saving); convert all to UTC.
+    df["t"] = pd.to_datetime(df["t"], utc=True, format="ISO8601")
+    df = df[["space", "status", "headcount", "t"]].sort_values(["space", "t"], kind="stable")
+    df = df.reset_index(drop=True)
     logger.info("Loaded %d occupancy events for %d spaces", len(df), df["space"].nunique())
     return df
 
@@ -155,15 +147,10 @@ def load_env_raw(csv_path: str | Path) -> pd.DataFrame:
         FileNotFoundError: If ``csv_path`` does not exist.
     """
     p = _check_file(csv_path)
-    df = duckdb.sql(
-        f"""
-        select cast(sensorid as bigint) as sensorid,
-               cast(createdate as timestamptz) as arrived,
-               jsondata
-        from read_csv_auto('{p}')
-        """
-    ).df()
-    df["arrived"] = pd.to_datetime(df["arrived"], utc=True)
+    df = pd.read_csv(p, usecols=list(ENV_COLUMNS), dtype={"sensorid": "int64", "jsondata": "string"})
+    df = df.rename(columns={"createdate": "arrived"})
+    df["arrived"] = pd.to_datetime(df["arrived"], utc=True, format="ISO8601")
+    df["jsondata"] = df["jsondata"].astype(str)
     logger.info("Loaded %d environmental messages from %d sensors", len(df), df["sensorid"].nunique())
     return df
 
