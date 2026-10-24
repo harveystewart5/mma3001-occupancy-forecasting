@@ -66,16 +66,25 @@ def day_segments(df: pd.DataFrame, start_h: int, end_h: int, weekdays_only: bool
             yield pd.Timestamp(d, tz=TZ), w
 
 
-def main() -> None:
-    """Run the case study and save results and figures."""
+def run(c_base_pct: float = 5.0, save: bool = True, df: pd.DataFrame | None = None) -> dict:
+    """Run the case study.
+
+    Args:
+        c_base_pct: Percentile of all CO2 readings used as background C_b.
+        save: Write JSON results and figures (False for sensitivity runs).
+        df: Pre-loaded data (avoids reloading in sensitivity loops).
+
+    Returns:
+        Dict of fitted parameters and validation metrics.
+    """
     FIG.mkdir(parents=True, exist_ok=True)
-    df = load()
+    df = load() if df is None else df
     out = {"n_10min_bins": int(len(df)), "co2_coverage_raw": float(df.c_raw.notna().mean()),
            "co2_coverage_after_pchip": float(df.c.notna().mean())}
 
     # ---- 1. Background and night decay (people assumed absent 20:00-06:00) ----
     wk = df[df.index.dayofweek >= 5].c_raw.dropna()
-    c_base = float(np.percentile(df.c.dropna(), 5))
+    c_base = float(np.percentile(df.c.dropna(), c_base_pct))
     out.update(c_base_ppm=c_base, weekend_median_ppm=float(wk.median()))
     lams, conds, conds_h = [], [], []
     for d, g in df.groupby(df.index.date):
@@ -144,6 +153,8 @@ def main() -> None:
                inverse_mae_hourly=float(np.mean(np.abs(hourly.est - hourly.proxy))),
                inverse_est_std_10min=float(n_est.std()),
                noise_std_ppm_est=float(np.std(np.diff(wk.values)) / np.sqrt(2)))
+    if not save:
+        return out
     with open(RES / "co2_case_study.json", "w") as f:
         json.dump(out, f, indent=2)
     log.info("CO2 case study:\n%s", json.dumps(out, indent=1))
@@ -180,6 +191,12 @@ def main() -> None:
     ax.set_ylim(top=650)
     ax.legend(loc="upper left", ncol=2); fig.autofmt_xdate()
     fig.tight_layout(); fig.savefig(FIG / "co2_validation.png"); plt.close(fig)
+    return out
+
+
+def main() -> None:
+    """Run with default settings and save outputs."""
+    run()
 
 
 if __name__ == "__main__":
