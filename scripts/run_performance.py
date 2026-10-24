@@ -76,6 +76,7 @@ def main() -> None:
     b, c, d, a = (np.random.rand(m) for _ in range(4))
 
     def triad():
+        """a = b * c + d using in-place ufuncs (no hidden temporaries)."""
         np.multiply(b, c, out=a)  # read b, c; write a  -> 24 B/element
         np.add(a, d, out=a)  # read a, d; write a  -> 24 B/element
 
