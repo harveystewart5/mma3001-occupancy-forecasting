@@ -14,6 +14,7 @@ from occupancy.physics import (
     fit_decay_rate,
     fit_generation,
     simulate,
+    simulate_fast,
 )
 
 G, LAM = 0.01, 1.0 / 3600  # 0.01 ppm/s per person; 1 air change per hour
@@ -99,3 +100,22 @@ def test_inverse_recovers_occupancy_without_noise():
     c = 440 + y
     n_est = estimate_occupancy(c, 60.0, G, LAM, 440)
     assert np.median(np.abs(n_est[5:-5] - n_true[5:-5])) < 0.3
+
+
+def test_simulate_fast_matches_loop():
+    rng = np.random.default_rng(3)
+    n = rng.integers(0, 20, 5000).astype(float)
+    np.testing.assert_allclose(simulate_fast(n, G, LAM, 600.0, 37.0), simulate(n, G, LAM, 600.0, 37.0), rtol=1e-12)
+
+
+def test_simulate_fast_float32_close_to_float64():
+    n = np.full(10000, 5.0)
+    y64 = simulate_fast(n, G, LAM, 600.0)
+    y32 = simulate_fast(n, G, LAM, 600.0, dtype=np.float32)
+    assert y32.dtype == np.float32
+    assert np.max(np.abs(y32 - y64) / np.max(y64)) < 1e-5
+
+
+def test_simulate_fast_rejects_negative_occupancy():
+    with pytest.raises(ValueError):
+        simulate_fast(np.array([1.0, -2.0]), G, LAM, 600.0)

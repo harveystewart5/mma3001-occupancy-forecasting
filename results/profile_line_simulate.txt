@@ -1,0 +1,45 @@
+Timer unit: 1e-09 s
+
+Total time: 0.152545 s
+File: /home/claude/mma3001-occupancy/occupancy/physics.py
+Function: simulate at line 54
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    54                                           def simulate(
+    55                                               n: np.ndarray, g: float, lam: float, h: float, y0: float = 0.0, method: str = "backward"
+    56                                           ) -> np.ndarray:
+    57                                               """Integrate dy/dt = g N - lam y with Euler's method.
+    58                                           
+    59                                               Args:
+    60                                                   n: Occupancy N_k for each step (people), length K.
+    61                                                   g: CO2 generation per person per unit volume [ppm/s/person].
+    62                                                   lam: Air-exchange rate Q/V [1/s].
+    63                                                   h: Time step [s].
+    64                                                   y0: Initial excess concentration [ppm].
+    65                                                   method: ``"forward"`` (explicit) or ``"backward"`` (implicit).
+    66                                           
+    67                                               Returns:
+    68                                                   Array of length K + 1: y_0 ... y_K [ppm].
+    69                                           
+    70                                               Raises:
+    71                                                   ValueError: On invalid parameters, unknown method, or negative N.
+    72                                               """
+    73         1       9940.0   9940.0      0.0      _check_params(g, lam, h)
+    74         1       4188.0   4188.0      0.0      n = np.asarray(n, dtype=float)
+    75         1     274661.0 274661.0      0.2      if np.any(n < 0):
+    76                                                   raise ValueError("Occupancy must be non-negative")
+    77         1      16014.0  16014.0      0.0      y = np.empty(n.size + 1)
+    78         1       2599.0   2599.0      0.0      y[0] = y0
+    79         1        429.0    429.0      0.0      if method == "forward":
+    80                                                   a = 1.0 - h * lam
+    81                                                   for k in range(n.size):
+    82                                                       y[k + 1] = a * y[k] + h * g * n[k]
+    83         1        786.0    786.0      0.0      elif method == "backward":
+    84         1       1677.0   1677.0      0.0          inv = 1.0 / (1.0 + h * lam)
+    85    200001   48827302.0    244.1     32.0          for k in range(n.size):
+    86    200000  103401180.0    517.0     67.8              y[k + 1] = (y[k] + h * g * n[k]) * inv
+    87                                               else:
+    88                                                   raise ValueError("method must be 'forward' or 'backward'")
+    89         1       6352.0   6352.0      0.0      return y
+
