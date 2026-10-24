@@ -107,7 +107,10 @@ def parse_env_payload(jsondata: str) -> list[dict]:
 
     Returns:
         List of dicts with keys ``name``, ``unit``, ``time`` (Unix seconds,
-        int) and ``value`` (float).
+        int) and ``value`` (float). Individual readings reported without a
+        ``value`` (the sensor sends e.g. ``{"time": ..., "errorCode": 4}``
+        when one channel fails) are skipped, so one failed channel does not
+        discard the valid readings in the same message.
 
     Raises:
         ValueError: If the text is not valid JSON or lacks the expected keys.
@@ -123,6 +126,8 @@ def parse_env_payload(jsondata: str) -> list[dict]:
         for var in variables:
             meta = var["variable"]
             for v in var["values"]:
+                if "value" not in v:
+                    continue  # failed channel, e.g. {"time": t, "errorCode": 4}
                 out.append(
                     {
                         "name": str(meta["name"]),

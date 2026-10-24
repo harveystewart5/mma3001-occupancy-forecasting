@@ -39,6 +39,18 @@ def test_parse_env_payload_extracts_reading():
     assert out == [{"name": "Carbon dioxide", "unit": "ppm", "time": 1712703315, "value": 458.0}]
 
 
+def test_parse_env_payload_skips_failed_channel_keeps_others():
+    # Real pattern from sensor 326: formaldehyde channel reports an error code.
+    payload = json.dumps(
+        [
+            {"values": [{"time": 5, "value": 447}], "variable": {"name": "Carbon dioxide", "unit": "ppm"}},
+            {"values": [{"time": 5, "errorCode": 4}], "variable": {"name": "Formaldehyde", "unit": "ug/m3"}},
+        ]
+    )
+    out = parse_env_payload(payload)
+    assert [r["name"] for r in out] == ["Carbon dioxide"]
+
+
 def test_parse_env_payload_rejects_bad_json():
     with pytest.raises(ValueError):
         parse_env_payload("{not json")
