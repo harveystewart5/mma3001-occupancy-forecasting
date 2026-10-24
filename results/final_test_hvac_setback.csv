@@ -1,0 +1,3 @@
+model,timetabled_hours,truly_empty_hours,empty_hours_correctly_set_back,occupied_hours_wrongly_set_back,occupied_hours
+Persistence,5792,2285,1869,582,3507
+Neural network (MLP),5792,2285,1503,222,3507
