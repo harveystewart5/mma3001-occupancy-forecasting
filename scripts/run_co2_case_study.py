@@ -113,6 +113,7 @@ def run(c_base_pct: float = 5.0, save: bool = True, df: pd.DataFrame | None = No
     test = [w for d, w in segs if d >= SPLIT]
 
     def responses(ws, lam):
+        """Unit-g responses R and decay-corrected targets T for each day (see fit_generation)."""
         R, T = [], []
         for w in ws:
             y = w.c.values - c_base
