@@ -20,9 +20,8 @@ import pandas as pd
 
 from occupancy.evaluate import bootstrap_mae_diff, summarise
 from occupancy.features import TARGET, time_split
-from occupancy.ml import Forecaster, candidates
+from occupancy.ml import Forecaster, candidates, time_series_cv
 from occupancy.models import GlobalMean, Persistence, SeasonalProfile
-from occupancy.ml import time_series_cv
 
 PROC = Path("data/processed")
 RES = Path("results")

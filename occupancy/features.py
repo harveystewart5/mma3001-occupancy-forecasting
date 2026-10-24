@@ -149,19 +149,3 @@ def time_split(
     val = df[(df["bin"] >= v) & (df["bin"] < t)]
     test = df[df["bin"] >= t]
     return train, val, test
-
-
-def one_hot_space(df: pd.DataFrame, spaces: list[str]) -> np.ndarray:
-    """One-hot encode the space ID against a fixed list of known spaces.
-
-    An unseen space encodes as all zeros, so models can still be applied to
-    it (used for the leave-one-space-out test).
-
-    Args:
-        df: Table with a ``space`` column.
-        spaces: Ordered list of known space IDs.
-
-    Returns:
-        Array of shape (len(df), len(spaces)).
-    """
-    return (df["space"].to_numpy()[:, None] == np.asarray(spaces)[None, :]).astype(float)
