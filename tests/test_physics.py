@@ -58,11 +58,17 @@ def test_backward_euler_stable_beyond_limit():
     assert np.all(np.diff(np.abs(y)) <= 0) and abs(y[-1]) < 1e-6
 
 
-def test_simulate_rejects_bad_inputs():
+def test_simulate_rejects_zero_time_step():
     with pytest.raises(ValueError):
         simulate(np.ones(3), G, LAM, h=0.0)
+
+
+def test_simulate_rejects_negative_occupancy():
     with pytest.raises(ValueError):
         simulate(np.array([-1.0]), G, LAM, h=1.0)
+
+
+def test_simulate_rejects_unknown_method():
     with pytest.raises(ValueError):
         simulate(np.ones(3), G, LAM, h=1.0, method="rk4")
 

@@ -84,12 +84,23 @@ def test_time_split_rejects_reversed_dates():
 
 # ---------- metrics ----------
 
-def test_metrics_known_values():
-    y, p = np.array([0.0, 2.0, 4.0]), np.array([1.0, 2.0, 2.0])
-    assert mae(y, p) == pytest.approx(1.0)
-    assert rmse(y, p) == pytest.approx(np.sqrt(5 / 3))
-    assert bias(y, p) == pytest.approx(-1 / 3)
-    assert r2(y, y) == pytest.approx(1.0)
+Y, P = np.array([0.0, 2.0, 4.0]), np.array([1.0, 2.0, 2.0])  # errors +1, 0, -2
+
+
+def test_mae_known_value():
+    assert mae(Y, P) == pytest.approx(1.0)
+
+
+def test_rmse_known_value():
+    assert rmse(Y, P) == pytest.approx(np.sqrt(5 / 3))
+
+
+def test_bias_known_value():
+    assert bias(Y, P) == pytest.approx(-1 / 3)
+
+
+def test_r2_perfect_prediction():
+    assert r2(Y, Y) == pytest.approx(1.0)
 
 
 def test_metrics_reject_nan():
