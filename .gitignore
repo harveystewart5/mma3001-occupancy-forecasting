@@ -222,5 +222,6 @@ __marimo__/
 # --- Project-specific ---
 # Raw data is large (1.9 GB) and provided by the unit; do not commit it.
 data/raw/*.csv
+data/raw/*.xlsx
 data/processed/*.duckdb
 data/processed/*.parquet
