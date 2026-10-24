@@ -141,6 +141,11 @@ def split_by_bin(intervals: pd.DataFrame, freq: pd.Timedelta = pd.Timedelta(hour
     n_pieces = (last_bin - first_bin) // f + 1
 
     # Repeat each interval once per bin it touches, then clip to that bin.
+    # Worked example: intervals A (2 bins) and B (1 bin) give n_pieces = [2, 1]
+    #   idx    = [0, 0, 1]  -> which interval each piece came from
+    #   offset = [0, 1, 0]  -> 0 for an interval's first bin, 1 for its second...
+    # This is the vectorised equivalent of a double for-loop over intervals and
+    # their bins, which would be far too slow in Python for 9 million events.
     idx = np.repeat(np.arange(len(intervals)), n_pieces)
     offset = np.arange(len(idx)) - np.repeat(np.cumsum(n_pieces) - n_pieces, n_pieces)
     bin_start = first_bin[idx] + offset * f
