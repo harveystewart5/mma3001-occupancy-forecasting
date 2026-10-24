@@ -128,9 +128,11 @@ def split_by_bin(intervals: pd.DataFrame, freq: pd.Timedelta = pd.Timedelta(hour
     require_columns(intervals, ["space", "start", "end", "headcount"])
     if freq <= pd.Timedelta(0):
         raise ValueError("freq must be positive")
-    f = freq.value  # nanoseconds
-    s = intervals["start"].astype("int64").to_numpy()
-    e = intervals["end"].astype("int64").to_numpy()
+    f = pd.Timedelta(freq).as_unit("ns").value  # nanoseconds
+    # pandas may store timestamps in s, ms, us or ns; force ns before taking
+    # the integer representation, otherwise units silently mismatch.
+    s = intervals["start"].dt.as_unit("ns").astype("int64").to_numpy()
+    e = intervals["end"].dt.as_unit("ns").astype("int64").to_numpy()
     first_bin = (s // f) * f
     last_bin = ((e - 1) // f) * f  # bin containing the last instant before e
     n_pieces = (last_bin - first_bin) // f + 1
