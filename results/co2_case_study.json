@@ -1,4 +1,39 @@
 {
+  "proxy_selection": {
+    "residual_corr_with_869": {
+      "0f3f37f8": 0.4109950457250794,
+      "227f1068": 0.29200520768338206,
+      "3e5a14df": 0.6084626164957702,
+      "941f0352": 0.5023889050749024,
+      "cca1ac3e": 0.20252688202492639
+    },
+    "overlap": {
+      "0f3f37f8": {
+        "hours": 2525,
+        "hours_before_split": 1469
+      },
+      "227f1068": {
+        "hours": 2456,
+        "hours_before_split": 1400
+      },
+      "3e5a14df": {
+        "hours": 1033,
+        "hours_before_split": 0
+      },
+      "941f0352": {
+        "hours": 2523,
+        "hours_before_split": 1472
+      },
+      "cca1ac3e": {
+        "hours": 2455,
+        "hours_before_split": 1400
+      }
+    },
+    "weekday_minus_weekend_ppm": {
+      "869": 66.81666666666666,
+      "326": -1.5
+    }
+  },
   "n_10min_bins": 15191,
   "co2_coverage_raw": 0.9084326245803436,
   "co2_coverage_after_pchip": 1.0,

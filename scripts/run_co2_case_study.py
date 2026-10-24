@@ -56,6 +56,57 @@ def load() -> pd.DataFrame:
     return df
 
 
+def proxy_evidence() -> dict:
+    """Evidence for choosing the proxy space and for discarding sensor 326.
+
+    1. For each occupancy space, correlate hourly headcount with hourly CO2
+       from sensor 869 (Mar-Jun 2024) after subtracting each series' mean for
+       that hour of the week. Removing the shared weekly routine means a high
+       correlation reflects the same day-to-day fluctuations, not just the
+       fact that both are busier on weekday afternoons.
+    2. For each live CO2 sensor, the median weekday 10:00-16:00 CO2 minus the
+       weekend median: a room with people in it should be clearly higher on
+       weekdays.
+
+    Returns:
+        Dict with ``residual_corr_with_869`` and ``overlap`` (hours in common,
+        and how many fall in the Mar-Apr calibration window) per space, and
+        ``weekday_minus_weekend_ppm`` per sensor.
+    """
+    env = pd.read_parquet(PROC / "env_readings.parquet")
+    co2 = env[env.name == "Carbon dioxide"]
+    occ = pd.read_parquet(PROC / "occ_hourly.parquet")
+
+    def hourly(sensor):
+        s = co2[co2.sensorid == sensor].set_index("t")["value"].sort_index()
+        return s.resample("1h").mean().tz_convert(TZ)
+
+    c869 = hourly(6012002000869)
+    c869 = c869[c869.index < pd.Timestamp("2024-06-14", tz=TZ)].dropna()
+
+    def deseasonalise(s):
+        how = s.index.dayofweek * 24 + s.index.hour
+        return s - s.groupby(how).transform("mean")
+
+    corr, overlap = {}, {}
+    for space, g in occ.groupby("space"):
+        n = g.set_index("bin")["headcount"].tz_convert(TZ)
+        both = pd.concat([c869.rename("c"), n.rename("n")], axis=1, join="inner").dropna()
+        if len(both) > 24 * 14:
+            corr[space[:8]] = float(deseasonalise(both.c).corr(deseasonalise(both.n)))
+            # The proxy must cover the Mar-Apr calibration window, not just May-Jun.
+            overlap[space[:8]] = {"hours": len(both), "hours_before_split": int((both.index < SPLIT).sum())}
+
+    contrast = {}
+    for sensor in (6012002000869, 6012002000326):
+        s = hourly(sensor).dropna()
+        if sensor == 6012002000869:
+            s = s[s.index < pd.Timestamp("2024-06-14", tz=TZ)]
+        day = s[s.index.hour.isin(range(10, 16))]
+        contrast[str(sensor)[-3:]] = float(day[day.index.dayofweek < 5].median() - day[day.index.dayofweek >= 5].median())
+    return {"residual_corr_with_869": corr, "overlap": overlap, "weekday_minus_weekend_ppm": contrast}
+
+
 def day_segments(df: pd.DataFrame, start_h: int, end_h: int, weekdays_only: bool = True):
     """Yield complete daily windows [start_h, end_h) with no missing data."""
     for d, g in df.groupby(df.index.date):
@@ -79,7 +130,8 @@ def run(c_base_pct: float = 5.0, save: bool = True, df: pd.DataFrame | None = No
     """
     FIG.mkdir(parents=True, exist_ok=True)
     df = load() if df is None else df
-    out = {"n_10min_bins": int(len(df)), "co2_coverage_raw": float(df.c_raw.notna().mean()),
+    out = {"proxy_selection": proxy_evidence() if save else None,
+           "n_10min_bins": int(len(df)), "co2_coverage_raw": float(df.c_raw.notna().mean()),
            "co2_coverage_after_pchip": float(df.c.notna().mean())}
 
     # ---- 1. Background and night decay (people assumed absent 20:00-06:00) ----
