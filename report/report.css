@@ -1,5 +1,5 @@
 @page { size: A4; margin: 17mm 17mm 18mm 17mm; }
-body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 10.8pt; line-height: 1.36; color: #111; max-width: none; margin: 0; }
+body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 10.4pt; line-height: 1.33; color: #111; max-width: none; margin: 0; }
 header#title-block-header { margin-bottom: 10pt; border-bottom: 1px solid #999; padding-bottom: 6pt; }
 h1.title { font-size: 18pt; margin: 0 0 2pt; }
 p.subtitle { font-size: 11pt; margin: 0 0 4pt; color: #333; }
