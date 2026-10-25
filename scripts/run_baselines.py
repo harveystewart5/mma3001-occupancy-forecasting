@@ -26,7 +26,7 @@ log = logging.getLogger("run_baselines")
 
 
 def main() -> None:
-    """Score baselines on the validation period and leave-one-space-out."""
+    """Score the baselines on the validation period."""
     hourly = pd.read_parquet(PROC / "occ_hourly.parquet")
     data = build_dataset(hourly)
     data.to_parquet(PROC / "features.parquet")
@@ -49,21 +49,6 @@ def main() -> None:
     res.to_csv(RES / "baselines_val.csv", index=False)
     log.info("Validation results:\n%s", res.round(3).to_string(index=False))
 
-    # Leave-one-space-out: can the profile generalise to a room it never saw?
-    # Both variants are scored on the validation period only (out of sample).
-    loso = []
-    for space in sorted(val["space"].unique()):
-        te = val[val["space"] == space]
-        own = SeasonalProfile().fit(train)  # trained with this space
-        unseen = SeasonalProfile().fit(train[train["space"] != space])  # never saw it
-        loso.append({
-            "held_out": space[:8],
-            "MAE_trained_on_space": summarise(te[TARGET], own.predict(te))["MAE"],
-            "MAE_space_unseen": summarise(te[TARGET], unseen.predict(te))["MAE"],
-        })
-    loso = pd.DataFrame(loso)
-    loso.to_csv(RES / "baselines_leave_one_space_out.csv", index=False)
-    log.info("Leave-one-space-out (validation period):\n%s", loso.round(3).to_string(index=False))
     with open(RES / "split_info.json", "w") as f:
         json.dump(split_info, f, indent=2)
 
