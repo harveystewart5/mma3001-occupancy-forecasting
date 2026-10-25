@@ -239,6 +239,6 @@ Table 4. Arithmetic intensity and timing of the main calculations.
 4. Virtanen, P. et al. (2020). SciPy 1.0: fundamental algorithms for scientific computing in Python. *Nature Methods*, 17, 261-272.
 5. Williams, S., Waterman, A. and Patterson, D. (2009). Roofline: an insightful visual performance model for multicore architectures. *Communications of the ACM*, 52(4), 65-76.
 6. Persily, A. and de Jonge, L. (2017). Carbon dioxide generation rates for building occupants. *Indoor Air*, 27(5), 868-879.
-7. Anthropic (2026). Claude Opus 5.5, accessed through claude.ai, 24-25 October 2026.
+7. Anthropic (2026). Claude Opus 5.5, accessed through claude.ai.
 
 GitHub repository: <https://github.com/harveystewart5/mma3001-occupancy-forecasting> (includes the HTML code documentation in `docs/api` and the test report in `docs/test_report.html`).
