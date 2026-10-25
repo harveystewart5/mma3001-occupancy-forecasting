@@ -210,9 +210,9 @@ Table 4. Arithmetic intensity and timing of the main calculations.
 
 | Task | AI contribution | What I did |
 | --- | --- | --- |
-| Reading the brief and data; suggesting a dataset | High | Questioned how it knew the sensors were broken, checked the raw data myself, then chose Dataset 2 |
+| Reading the brief and data; suggesting a dataset | Medium | Questioned how it knew the sensors were broken, checked the raw data myself, then chose Dataset 2 |
 | Writing the code | High | Set the requirements, reviewed outputs, ran the pipeline |
-| Choosing methods | Medium | Chose the 1-hour forecast and scope, and kept it within the unit's content |
+| Choosing methods | Low | Chose the 1-hour forecast and scope, and kept it within the unit's content |
 | Tests, docs, performance | High | Checked tests use known answers and reviewed every figure |
 | Report | Medium (drafting) | Directed the structure, tone and length, checked the numbers against `results/`, and wrote this section |
 
