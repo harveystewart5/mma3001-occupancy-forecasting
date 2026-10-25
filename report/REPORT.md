@@ -216,6 +216,8 @@ Table 4. Arithmetic intensity and timing of the main calculations.
 | Tests, docs, performance | High | Checked tests use known answers and reviewed every figure |
 | Report | Medium (drafting) | Directed the structure, tone and length, and reworded the first draft |
 
+**Why I used it.** I mainly wanted help with the coding and testing, which is where I used it most. Analysing a dataset of more than 9 million rows and building and testing several models by myself would have taken a very long time. Using AI for that let me spend more of my time analysing the results and making the report better.
+
 **How I checked it.** Tests with known answers (the 0.5-person example, the exact ODE solution, manufactured data), looking at raw data and every figure, and comparing claims with the source and git files.
 
 **Errors it made.**
