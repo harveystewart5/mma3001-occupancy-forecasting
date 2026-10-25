@@ -26,3 +26,11 @@ Runner-up kept for interpretability discussion: decision tree (depth 14, min lea
 
 Final test protocol: refit selected model and baselines on train + validation
 (Nov 2023 - Oct 2025), evaluate once on test (Nov 2025 - Apr 2026).
+
+## Addendum (25 Oct 2026, after the review)
+
+All five families were later scored on the test period for completeness of
+reporting; the selection above was not revisited. On test, RBF SVR had the
+lowest MAE (0.2745 vs MLP 0.2833) but higher RMSE (0.861 vs 0.828) and a
+negative bias (-0.040, under-predicts); k-NN and ridge did not beat
+persistence on test (bootstrap CIs include or exceed zero).
