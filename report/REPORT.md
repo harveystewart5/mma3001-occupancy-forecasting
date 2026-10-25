@@ -25,7 +25,7 @@ I also looked at a smaller second question: could a CO₂ sensor, which is cheap
 
 ## 2. Inputs, outputs and data
 
-**Data.** The Monash Smart Infrastructure data [2] has two main files. The occupancy file contains 9,091,732 rows from five spaces between November 2023 and April 2026. A new row is only written when the number of people in a room changes, so the data is an irregular stream of events rather than regular readings. The environmental file contains 179,447 messages from five CO₂ sensors, with each reading stored inside a block of JSON text. Although the sensor list names 77 sensors, only five actually appear in the data.
+**Data.** The Monash Smart Infrastructure data [2] has two main files. The occupancy file contains 9,091,732 rows from five spaces between November 2023 and April 2026. A new row is only written when the number of people in a room changes, so the data is an irregular stream of events rather than regular readings. The environmental file contains 179,447 messages from five CO₂ sensors, with each reading stored inside a block of JSON text. The sensor list names 77 environmental sensors, but the data contains only five, and only one of those (sensor 869 in room G.38) is on the list.
 
 **Data audit.** Before modelling anything, I checked the data for problems. Each check in `occupancy/audit.py` reports what it finds rather than quietly fixing it. Four issues stood out:
 
