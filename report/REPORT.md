@@ -204,31 +204,30 @@ Table 4. Arithmetic intensity and timing of the main calculations.
 
 ## 7. AI use and reflection
 
-**Tools used.** Claude (Anthropic, Claude Opus 5.5) through claude.ai, 24-25 October 2026.
+**Tools used.** Claude (Anthropic, Claude Opus 5.5).
 
 **What it was used for and level of contribution.**
 
 | Task | AI contribution | What I did |
 | --- | --- | --- |
-| Reading the brief and data; suggesting a dataset | High | Chose Dataset 2 after asking how it knew the sensors were broken, and checked the raw data myself |
+| Reading the brief and data; suggesting a dataset | High | Questioned how it knew the sensors were broken, checked the raw data myself, then chose Dataset 2 |
 | Writing the code | High | Set the requirements, reviewed outputs, ran the pipeline |
 | Choosing methods | Medium | Chose the 1-hour forecast and scope, and kept it within the unit's content |
 | Tests, docs, performance | High | Checked tests use known answers and reviewed every figure |
-| Report | High (first draft) | Rewrote it and checked the numbers against `results/` |
+| Report | High (drafting) | Directed the structure, tone and length, checked the numbers against `results/`, and wrote this section |
 
-**Why I used it.** I had about two days. Using AI for the code let me spend the time understanding and checking the methods. I had it explain each step before building it, which is also how I prepared for the interview.
+**Why I used it.** I had about two days, so I used AI for the coding and drafting and spent my time understanding and checking the methods.
 
-**How I checked it.** Tests with known answers (the 0.5-person example, the exact ODE solution, manufactured data), the conservation check, looking at raw data and every figure, and comparing claims with the source files.
+**How I checked it.** Tests with known answers (the 0.5-person example, the exact ODE solution, manufactured data), looking at raw data and every figure, and comparing claims with the source and git files.
 
 **Errors it made.**
 
 - It called sensor 326 an "outdoor" sensor, but the sensor isn't on the list, so its location is unknown.
 - Its first JSON reader threw away whole messages when one reading had an error, losing 29,043 readings.
 - Its resampling code used the wrong time units (putting the data in 1970) and stretched each sensor's last reading 24 hours into the future. Unit tests caught both.
-- While splitting the git history into real, smaller commits (it refused to fake dates), it accidentally committed 64 MB of data, which we removed before uploading.
 - It used a database tool (DuckDB) that isn't taught in the unit. In my scope review it was replaced with pandas, with identical results, and a number it had quoted from early exploration was corrected (0.53 to 0.50).
 
-**Decisions that stayed mine.** The dataset, the forecast horizon, the scope, accepting the outage rule after testing it, the model choice by tie-break, asking for the scope reviews, and what to claim in this report.
+**Decisions that stayed mine.** The dataset, the forecast horizon and scope, keeping everything within the unit, the model choice, and what to claim in the report.
 
 **Effect on my understanding.** Having each step explained helped me follow the reasoning, for example why a random split leaks information or why forward Euler needs hλ < 2. The main risk was trusting it too much: several of its mistakes gave no error message and were only caught by tests or a number that looked wrong.
 
