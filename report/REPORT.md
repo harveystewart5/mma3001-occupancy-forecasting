@@ -44,7 +44,7 @@ I also looked at a smaller second question: could a CO₂ sensor, which is cheap
 | Output | Forecast | predicted average headcount for the next hour, used for the HVAC schedule (people; negative predictions are set to 0) |
 | Output | CO₂ model | air change rate λ (per hour), CO₂ added per person g (ppm per hour per person), simulated CO₂ (ppm) |
 
-**Invalid or missing inputs.** The code checks its inputs and stops with a clear error message if something is wrong. This covers missing columns, wrong data types, timestamps without a time zone, negative headcounts, events in the wrong order, a time step of zero or less, broken JSON, and missing files. Smaller problems are handled without stopping. If one reading inside a JSON message has failed (sensor 326 sometimes sends an error code instead of a value), only that reading is skipped. Outage time is treated as missing, and any hour that is less than half covered by trusted data is dropped. A room the model hasn't seen before still gets a forecast, based only on the time and its past headcounts. The inputs and outputs of every function are described in its docstring and in the HTML documentation generated with pdoc.
+**Invalid or missing inputs.** The code checks its inputs and stops with a clear error message if something is wrong. This covers missing columns, wrong data types, timestamps without a time zone, negative headcounts, events in the wrong order, a time step of zero or less, broken JSON, and missing files. Smaller problems are handled without stopping. If one reading inside a JSON message has failed (sensor 326 often sends an error code instead of a value), only that reading is skipped. Outage time is treated as missing, and any hour that is less than half covered by trusted data is dropped. A room the model hasn't seen before still gets a forecast, based only on the time and its past headcounts. The inputs and outputs of every function are described in its docstring and in the HTML documentation generated with pdoc.
 
 ## 3. Computational approach
 
@@ -58,7 +58,7 @@ The models need one value per room per hour, but the raw data is a stream of eve
 
 $$\bar{N} = \frac{\int N(t)\,dt}{\int dt} = \frac{\sum_i N_i\,\Delta t_i}{\sum_i \Delta t_i}$$
 
-Because the function is made of flat steps, this sum gives the exact integral. The simpler option, averaging the rows in each hour, gives the wrong answer. Busy periods produce lots of rows because the count keeps changing, while quiet periods produce very few, so busy moments get counted too many times. In a typical hour the row average was 1.4 to 2.1 times too high, and in one hour in ten it was more than 12 times too high. For example, at 9am on 10 April 2024 in G.20, averaging the rows gives 3.6 people, while the true time-weighted average is 0.3. This step produced 84,422 hourly values.
+Because the function is made of flat steps, this sum gives the exact integral. The simpler option, averaging the rows in each hour, gives the wrong answer. Busy periods produce lots of rows because the count keeps changing, while quiet periods produce very few, so busy moments get counted too many times. In a typical hour the row average was 1.4 to 2.1 times too high, and in one hour in ten it was more than 12 times too high. For example, at 9am on 11 April 2024 in G.20, averaging the rows gives 3.6 people, while the true time-weighted average is 0.3. This step produced 84,422 hourly values.
 
 ### 3.2 What the model is allowed to know
 
@@ -78,7 +78,7 @@ Here y = C - C~b~ is the CO₂ above the background level, g = G/V is the CO₂ 
 
 I solved the equation with forward Euler, y~k+1~ = (1 - hλ)y~k~ + hgN~k~, and with backward Euler, y~k+1~ = (y~k~ + hgN~k~)/(1 + hλ). To find λ, I looked at 75 nights when the room was empty and CO₂ was falling, and fitted a straight line through ln(C - C~b~) using least squares. Only readings at least 15 ppm above background were used, which also avoids taking the log of readings below it. I then fitted the daytime λ and g using weekdays in March and April.
 
-One problem is that no CO₂ sensor is in the same room as an occupancy sensor, so I had to use another room's headcount as a stand-in. I compared all five rooms against the CO₂ after removing the usual weekly pattern from both. Space 3e5a matched best (correlation 0.61), but it has no data from March or April, when the model was fitted. The next best was space 941f (0.50), so I used that. This is the weakest assumption in the project, and I return to it in Section 4.
+One problem is that none of the occupancy spaces could be matched to room G.38, so I had to use another room's headcount as a stand-in. I compared all five rooms against the CO₂ after removing the usual weekly pattern from both. Space 3e5a matched best (correlation 0.61), but it has no data from March or April, when the model was fitted. The next best was space 941f (0.50), so I used that. This is the weakest assumption in the project, and I return to it in Section 4.
 
 ## 4. Validation method and results
 
@@ -165,7 +165,7 @@ Table 3. Sensitivity to the outage limits (validation data).
 | 4 h / 24 h | 59,174 | 0.364 | 0.335 |
 | 1 h / 12 h | 59,027 | 0.376 | 0.350 |
 
-Person-hours is the total number of people multiplied by hours across all rooms. Each setting slightly changes which hours are included, but the limit for occupied rooms makes almost no difference, so the results don't depend on that choice. Making the empty-room limit stricter (12 hours) throws away about 4,000 genuinely quiet weekend hours, so I kept 24 hours. For the CO₂ model, I varied the background level between 422 and 445 ppm. This changed g by about 4% but the daytime λ by about 13%, so λ is the most sensitive parameter in the physics model.
+Person-hours is the total number of people multiplied by hours across all rooms. Each setting slightly changes which hours are included, but the limit for occupied rooms makes almost no difference, so the results don't depend on that choice. Making the empty-room limit stricter (12 hours) drops 1,470 hours that were almost all empty (60% at weekends), which removes about 4,000 usable rows, so I kept 24 hours. For the CO₂ model, I varied the background level between 422 and 445 ppm. This changed g by at most 7%, but the daytime λ by 10 to 16%, so λ is the most sensitive parameter in the physics model.
 
 ### 5.3 Performance analysis
 
@@ -183,7 +183,7 @@ Table 4. Arithmetic intensity and timing of the main calculations.
 
 ![Figure 6. Roofline plot [5] with the measured machine limits and the project's code.](../results/figures/roofline.png){width=60%}
 
-**Baseline vs improved.** The backward Euler solver does very little arithmetic for the amount of data it moves, so on the roofline (Figure 6) it sits in the memory-limited region. However, the original Python loop only reached 0.4% of that limit. Using line_profiler, I found that all of the time was spent inside the loop itself, about 0.7 microseconds per step, so the bottleneck was Python's overhead rather than the hardware. Backward Euler for this equation is simply "new value = a × old value + b × input", and SciPy's `lfilter` function [4] runs exactly that loop in compiled C. It gives identical answers, agreeing with the Python version to 10⁻¹², and is **35 to 38 times faster**, while still scaling linearly with the number of steps. It still only reaches 15% of the bandwidth limit, because each step has to wait for the one before it, so the real limit is how quickly one step can follow another rather than memory. On this 15-week dataset the loop only takes milliseconds either way, so the speed-up matters most if the model is fitted many times or scaled up to many sensors over several years. The neural network does much more arithmetic per byte (8.2), which puts it in the compute-limited region, but its small layers mean it only reaches 2.9% of peak.
+**Baseline vs improved.** The backward Euler solver does very little arithmetic for the amount of data it moves, so on the roofline (Figure 6) it sits in the memory-limited region. However, the original Python loop only reached 0.4% of that limit. Using line_profiler, I found that all of the time was spent inside the loop itself, about 0.24 microseconds per step, so the bottleneck was Python's overhead rather than the hardware. Backward Euler for this equation is simply "new value = a × old value + b × input", and SciPy's `lfilter` function [4] runs exactly that loop in compiled C. It gives identical answers, agreeing with the Python version to 10⁻¹², and is **35 to 38 times faster** for 10,000 steps or more (about 17 times at 1,000 steps), while still scaling linearly with the number of steps. It still only reaches 15% of the bandwidth limit, because each step has to wait for the one before it, so the real limit is how quickly one step can follow another rather than memory. On this 15-week dataset the loop only takes milliseconds either way, so the speed-up matters most if the model is fitted many times or scaled up to many sensors over several years. The neural network does much more arithmetic per byte (8.2), which puts it in the compute-limited region, but its small layers mean it only reaches 2.9% of peak.
 
 **Precision.** Switching from float64 to float32 changed the solver's results by only 4 × 10⁻⁷, far less than the 8 ppm sensor noise. It wasn't any faster, though, because each step still has to wait for the last one, so I kept float64.
 
@@ -223,7 +223,7 @@ Table 4. Arithmetic intensity and timing of the main calculations.
 **Errors it made.**
 
 - It called sensor 326 an "outdoor" sensor, but the sensor isn't on the list, so its location is unknown.
-- Its first JSON reader threw away whole messages when one reading had an error, losing 29,043 readings.
+- Its first JSON reader threw away whole messages when one reading had an error, discarding 29,043 messages and the valid CO₂ reading in each.
 - Its resampling code used the wrong time units (putting the data in 1970) and stretched each sensor's last reading 24 hours into the future. Unit tests caught both.
 - It used a database tool (DuckDB) that isn't taught in the unit. In my scope review it was replaced with pandas, with identical results, and a number it had quoted from early exploration was corrected (0.53 to 0.50).
 
