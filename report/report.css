@@ -1,15 +1,16 @@
 @page { size: A4; margin: 17mm 17mm 18mm 17mm; }
-body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 10.5pt; line-height: 1.38; color: #111; max-width: none; margin: 0; }
+body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 10.2pt; line-height: 1.32; color: #111; max-width: none; margin: 0; }
 header#title-block-header { margin-bottom: 10pt; border-bottom: 1px solid #999; padding-bottom: 6pt; }
 h1.title { font-size: 18pt; margin: 0 0 2pt; }
 p.subtitle { font-size: 11pt; margin: 0 0 4pt; color: #333; }
 p.author, p.date { display: inline; margin: 0 10pt 0 0; font-size: 10pt; color: #444; }
-h2 { font-size: 13pt; margin: 14pt 0 4pt; border-bottom: 1px solid #ccc; padding-bottom: 2pt; break-after: avoid; }
+h2 { font-size: 13pt; margin: 11pt 0 4pt; border-bottom: 1px solid #ccc; padding-bottom: 2pt; break-after: avoid; }
 h3 { font-size: 11pt; margin: 10pt 0 3pt; break-after: avoid; }
 p { margin: 0 0 6pt; text-align: justify; }
 ul, ol { margin: 0 0 6pt 16pt; padding: 0; } li { margin-bottom: 2pt; }
 blockquote { margin: 4pt 16pt; font-style: italic; color: #222; }
-table { border-collapse: collapse; width: 100%; font-size: 8.8pt; margin: 4pt 0 8pt; break-inside: avoid; }
+table { border-collapse: collapse; width: 100%; font-size: 8.8pt; margin: 4pt 0 8pt; }
+tr { break-inside: avoid; }
 th, td { border: 1px solid #bbb; padding: 2.5pt 4pt; vertical-align: top; text-align: left; }
 th { background: #eee; }
 code { font-family: "Liberation Mono", monospace; font-size: 8.8pt; }
