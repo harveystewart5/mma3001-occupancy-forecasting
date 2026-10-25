@@ -1,0 +1,10 @@
+flowchart LR
+    A[Raw CSVs<br/>9.1M events<br/>179k CO2 msgs] --> B[Audit<br/>frozen sensors,<br/>outages]
+    B --> C[Resample<br/>time-weighted<br/>hourly headcount]
+    C --> D[Baselines<br/>+ time split]
+    D --> E[ML models<br/>CV tuning]
+    E --> F[Final test<br/>used once]
+    B --> G[CO2 ODE<br/>Euler methods]
+    C --> G
+    F --> H[Sensitivity +<br/>performance]
+    G --> H
