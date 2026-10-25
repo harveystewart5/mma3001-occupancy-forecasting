@@ -9,4 +9,3 @@ pytest==9.1.1
 pytest-html==4.2.0
 pdoc==16.0.0
 line_profiler==5.1.0
-scalene==1.5.51
