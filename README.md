@@ -208,8 +208,8 @@ is public.)
 
 ## AI use
 
-Claude (Anthropic) was used responsibly as a coding and analysis assistant, with all output
-checked by the student. How it was used is described in Section 7 of the project report.
+I used Claude (Anthropic) responsibly as a coding and analysis assistant, and checked all
+of its output myself. How I used it is described in Section 7 of the project report.
 
 ## Licence
 
