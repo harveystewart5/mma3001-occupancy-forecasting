@@ -5,86 +5,92 @@ author: "Harvey"
 date: "October 2026"
 ---
 
-**Summary.** I used Monash occupancy sensor data to predict how many people will be in a room over the next hour, so heating and cooling (HVAC) only needs to run when a room will actually be used. A small neural network predicted next-hour headcount with an average error of 0.28 people (0.55 during weekday working hours), a small but statistically real improvement on the simple baseline "next hour = last hour" (0.30, or 0.59 in working hours). I also tested whether a CO₂ mass-balance ODE could estimate occupancy from a CO₂ sensor. It gave sensible ventilation rates but was too noisy to replace the occupancy sensors.
+**Summary.** This project uses Monash occupancy sensor data to predict how many people will be in a room over the next hour, so that heating, ventilation and air conditioning (HVAC) only runs when a room is actually going to be used. My final model, a small neural network, predicts the next hour's headcount with an average error of 0.28 people. That is a small but real improvement on simply assuming the next hour will look like the last one. As a second part, I tested whether a physics model of CO₂ build-up could estimate occupancy from a CO₂ sensor instead. It produced sensible ventilation rates, but the CO₂ signal turned out to be too noisy to replace the occupancy sensors.
 
 ## 1. Engineering problem
 
-**Context.** Ventilation is sized for the number of people in a room, because people breathe out CO₂. Most buildings still run HVAC on a fixed timetable (e.g. 7am-7pm weekdays), so empty rooms are conditioned anyway and busy rooms can get stuffy.
+**Context.** Ventilation in a building is sized for the number of people in each room, because people breathe out CO₂. Most buildings still run their HVAC on a fixed timetable, such as 7am to 7pm on weekdays. As a result, empty rooms get heated, cooled and ventilated anyway, while busy rooms can still end up stuffy.
 
-**Problem.** *At the start of each hour, predict the average number of people in each room for the coming hour, using only data available at that time.* As a smaller second part, I tested whether a CO₂ sensor could be used to estimate occupancy with a physics model.
+**Problem.** The question I set out to answer was:
 
-**Why it matters.** One hour of warning lets the HVAC pre-condition a room that will be used and turn down one that won't. Predicting too high wastes energy and predicting too low leaves people in a poorly ventilated room, so I report which way the model is wrong (bias) as well as its overall error.
+> At the start of each hour, predict the average number of people in each room for the coming hour, using only the data available at that time.
 
-**Intended use.** One input to a room-by-room HVAC schedule. It is not a safety system, so it should be used with a margin at busy times.
+I also looked at a smaller second question: could a CO₂ sensor, which is cheaper and more common than a people counter, be used to estimate how many people are in a room?
 
-**Scope limits.** Five spaces, only two of which (G.20 and G.25, Building 60) could be matched to real rooms by finding their space IDs in the location spreadsheet, which is itself labelled "Incorrect Data". Room sizes and timetables are unknown. The CO₂ part uses one sensor (room G.38) for about 15 weeks and treats the room as perfectly mixed.
+**Why it matters.** An hour's warning gives the HVAC system time to prepare a room that will be used and to turn down one that won't. The two possible mistakes have different costs. Predicting too many people wastes energy, while predicting too few leaves people in a poorly ventilated room. For that reason I report the direction of the model's errors (its bias), not just their size.
+
+**Intended use.** The forecast is meant to be one input to a room-by-room HVAC schedule. It is not a safety system, so it should be used with a safety margin at busy times.
+
+**Scope limits.** The data covers five spaces. Only two of them, G.20 and G.25 in Building 60, could be matched to real rooms by finding their IDs in the location spreadsheet, which is itself labelled "Incorrect Data". I don't know the size, use or timetable of any of the rooms. The CO₂ part relies on a single sensor in room G.38 over about 15 weeks, and treats the room as perfectly mixed.
 
 ## 2. Inputs, outputs and data
 
-**Data.** The Monash Smart Infrastructure data [2]: the occupancy file has 9,091,732 rows from 5 spaces (Nov 2023 to Apr 2026). A row is only written when a room's count changes, so it's an irregular event stream. The environmental file has 179,447 messages from 5 CO₂ sensors, with readings stored as JSON text. The sensor list names 77 sensors, but only 5 are in the data.
+**Data.** The Monash Smart Infrastructure data [2] has two main files. The occupancy file contains 9,091,732 rows from five spaces between November 2023 and April 2026. A new row is only written when the number of people in a room changes, so the data is an irregular stream of events rather than regular readings. The environmental file contains 179,447 messages from five CO₂ sensors, with each reading stored inside a block of JSON text. Although the sensor list names 77 sensors, only five actually appear in the data.
 
-**Data audit** (`occupancy/audit.py`). Each check reports what it finds instead of silently fixing it.
+**Data audit.** Before modelling anything, I checked the data for problems. Each check in `occupancy/audit.py` reports what it finds rather than quietly fixing it. Four issues stood out:
 
-- **Frozen sensors:** a working sensor almost never repeats a message exactly. Sensors 777, 227 and 241 had only 1, 2 and 3 different messages out of thousands. Sensor 777 kept resending a reading from 6 May 2023, which only shows up in the measurement time inside the message, not the arrival time.
-- **Usable CO₂:** sensor 869 (G.38) worked from 29 Feb to 13 Jun 2024. Sensor 326 works but isn't on the sensor list and its CO₂ is no higher on weekdays than weekends (-1.5 ppm vs +67 ppm for sensor 869), so I didn't use it.
-- **Occupancy rows:** 4 duplicates removed; no negative headcounts or contradictory statuses.
-- **Outages:** a long silence could mean "nothing changed" or "sensor offline". If an occupied room went silent for over 1 hour, or an empty room for over 24 hours, I treated the rest of the gap as missing. This found 217 outages (about 1,190 hours). I test this choice in Section 5.
+- **Frozen sensors.** A working CO₂ sensor should almost never send exactly the same message twice. Sensors 777, 227 and 241 sent thousands of messages each, but only one, two and three different ones. Sensor 777 kept resending a reading from 6 May 2023 for months. This only shows up in the time the reading was *taken*, which is stored inside the message, not in the time it *arrived*.
+- **Usable CO₂ data.** Sensor 869 in room G.38 worked properly from 29 February to 13 June 2024. Sensor 326 also works, but it isn't on the sensor list and its CO₂ is no higher on weekdays than at weekends, so it doesn't seem to be in a room people use. I left it out.
+- **Occupancy rows.** There were four duplicate rows, which I removed. There were no negative headcounts and no rows where the status and headcount disagreed.
+- **Outages.** Because rows are only written when something changes, a long silence could mean either "nothing changed" or "the sensor was offline". I decided that if a room with people in it went silent for more than an hour, or an empty room for more than 24 hours, the rest of that gap should count as missing data. This found 217 outages, about 1,190 hours in total. Section 5 tests whether this choice matters.
 
-**Inputs and outputs.**
+**Inputs and outputs.** The table below summarises what the solution takes in and what it produces.
 
 | | What it is | Format and units |
 | --- | --- | --- |
-| Input | Occupancy events | room ID, timestamp with time zone, headcount (whole people ≥ 0) |
-| Input | CO₂ readings | sensor ID, measurement time, CO₂ in ppm (must be positive; this data ranged 403-646) |
-| Output | Hourly occupancy | time-weighted average headcount per room-hour (people ≥ 0) |
-| Output | Forecast | predicted average headcount for the next hour, for the HVAC schedule (people; negative predictions are set to 0) |
-| Output | CO₂ model | air change rate λ (per hour), CO₂ per person g (ppm/h/person), simulated CO₂ (ppm) |
+| Input | Occupancy events | room ID, timestamp with time zone, headcount (whole number of people, 0 or more) |
+| Input | CO₂ readings | sensor ID, measurement time, CO₂ in ppm (must be positive; this data ranged from 403 to 646) |
+| Output | Hourly occupancy | time-weighted average headcount for each room and hour (people, 0 or more) |
+| Output | Forecast | predicted average headcount for the next hour, used for the HVAC schedule (people; negative predictions are set to 0) |
+| Output | CO₂ model | air change rate λ (per hour), CO₂ added per person g (ppm per hour per person), simulated CO₂ (ppm) |
 
-**Invalid or missing inputs.** Missing columns, wrong types, timestamps without a time zone, negative headcounts, unsorted events, non-positive time steps and broken JSON raise a `ValueError`/`TypeError` with a message, and a missing file raises `FileNotFoundError`. A single failed reading inside a JSON message (sensor 326 sometimes sends an error code instead of a value) is skipped without losing the rest. Outage time is treated as missing, hours less than half covered are dropped, and an unseen room still gets a forecast: its room columns are all zero, so the model relies only on the time and past-headcount inputs. Every function's inputs and outputs are in its docstring and the pdoc HTML docs.
+**Invalid or missing inputs.** The code checks its inputs and stops with a clear error message if something is wrong. This covers missing columns, wrong data types, timestamps without a time zone, negative headcounts, events in the wrong order, a time step of zero or less, broken JSON, and missing files. Smaller problems are handled without stopping. If one reading inside a JSON message has failed (sensor 326 sometimes sends an error code instead of a value), only that reading is skipped. Outage time is treated as missing, and any hour that is less than half covered by trusted data is dropped. A room the model hasn't seen before still gets a forecast, based only on the time and its past headcounts. The inputs and outputs of every function are described in its docstring and in the HTML documentation generated with pdoc.
 
 ## 3. Computational approach
 
-Figure 1 shows the pipeline.
+With clean data in hand, the project follows the pipeline in Figure 1. Each stage is a separate script, and the whole thing can be re-run with one command.
 
-![Figure 1. Project pipeline. Each stage is one script and the whole thing re-runs with `python -m scripts.run_all`.](pipeline.png)
+![Figure 1. The project pipeline (re-run with `python -m scripts.run_all`).](pipeline.png)
 
-### 3.1 Events to hourly values (numerical integration)
+### 3.1 Turning events into hourly values
 
-Between events the headcount is constant, so headcount over time is a step function. The hourly average is the area under it divided by the time covered:
+The models need one value per room per hour, but the raw data is a stream of events. Between two events the headcount doesn't change, so headcount over time is a step function. The correct average for an hour is the area under that step function divided by the time covered (Week 6 numerical integration):
 
 $$\bar{N} = \frac{\int N(t)\,dt}{\int dt} = \frac{\sum_i N_i\,\Delta t_i}{\sum_i \Delta t_i}$$
 
-For a step function this is exact. I chose it because simply averaging the rows is wrong: busy periods create many rows and empty periods very few. Compared with the time-weighted value, the row average was 1.4-2.1 times too high in a typical hour (the median for each room) and more than 12 times too high in one hour in ten (e.g. 3.6 people instead of 0.3 at 9am on 10 April 2024 in G.20). The result was 84,422 hourly values.
+Because the function is made of flat steps, this sum gives the exact integral. The simpler option, averaging the rows in each hour, gives the wrong answer. Busy periods produce lots of rows because the count keeps changing, while quiet periods produce very few, so busy moments get counted too many times. In a typical hour the row average was 1.4 to 2.1 times too high, and in one hour in ten it was more than 12 times too high. For example, at 9am on 10 April 2024 in G.20, averaging the rows gives 3.6 people, while the true time-weighted average is 0.3. This step produced 84,422 hourly values.
 
-### 3.2 What the model can use (prediction contract, Week 5.6)
+### 3.2 What the model is allowed to know
 
-A forecast made at the start of an hour can only use: the hour and day of week (converted with sine and cosine so 11pm sits next to midnight, like a clock face), whether it's a weekend, which room it is, and **past** headcounts (1, 2, 3, 24 and 168 hours ago, and the average of the last 24 hours). Lags come from a complete hourly timeline, so a missing hour stays missing instead of borrowing the wrong hour. 82,215 rows were usable.
+Following the "prediction contract" idea from Week 5.6, I fixed exactly what a forecast can use. A forecast made at the start of an hour can see the time of day, the day of the week, whether it's a weekend, which room it is, and the room's **past** headcounts: one, two and three hours ago, the same hour yesterday, the same hour last week, and the average over the last day. The hour and day are converted with sine and cosine so that 11pm sits next to midnight, the same way positions do on a clock face. Past values are taken from a complete hourly timeline, so if an hour is missing because of an outage, its value stays missing instead of being borrowed from the wrong hour. This left 82,215 usable rows.
 
 ### 3.3 Models
 
-I compared three baselines (always predict the average; persistence, "next hour = last hour"; and the average for that room, weekday and hour) with five models from the unit: ridge regression (5.1), a decision tree (5.2), k-nearest neighbours (3.6), an SVR (5.3, trained on 5,000 rows because it is slow on large data) and a neural network with one hidden layer of 32 neurons (5.4). All models use scikit-learn [3]. Scaling and encoding are done inside a `Pipeline` so they are only learned from training data. I chose each model's settings with `TimeSeriesSplit` (4 folds, one-day gap) on the training period only.
+I compared five machine learning models from the unit against three simple baselines. The baselines are always predicting the average, persistence ("the next hour will look like the last one"), and the usual average for that room, weekday and hour. The five models, all built with scikit-learn [3], are ridge regression (Week 5.1), a decision tree (5.2), k-nearest neighbours (3.6), a support vector regressor or SVR (5.3), and a neural network with one hidden layer of 32 neurons (5.4). The SVR was trained on a 5,000-row sample, because it becomes very slow on large datasets. Any scaling of the inputs is done inside a scikit-learn `Pipeline`, so it is learned from the training data only. I chose each model's settings, such as tree depth or network size, using `TimeSeriesSplit` cross-validation on the training period.
 
-### 3.4 CO₂ mass-balance model (ODE, Week 7)
+### 3.4 CO₂ mass-balance model
 
-Treating the room as one well-mixed volume, CO₂ rises because people breathe it out and falls because ventilation removes it:
+For the second question I used a simple ODE from Week 7. If the room is treated as one well-mixed volume of air, its CO₂ rises because people breathe it out and falls because ventilation replaces the air:
 
 $$V\frac{dC}{dt} = G\,N(t) - Q\,(C - C_b) \quad\Longrightarrow\quad \frac{dy}{dt} = g\,N(t) - \lambda\,y$$
 
-where y = C - C~b~ is CO₂ above background, g = G/V and λ = Q/V. **Assumptions:** perfect mixing, constant background (429 ppm), the same CO₂ output per person, and constant occupancy within each 10-minute step. Only g and λ can be found from CO₂ data, since V, Q and G only appear as ratios.
+Here y = C - C~b~ is the CO₂ above the background level, g = G/V is the CO₂ added per person and λ = Q/V is the air change rate. The model assumes the air is perfectly mixed, the background is constant at 429 ppm, everyone breathes out the same amount of CO₂, and the number of people stays the same within each 10-minute step. Only g and λ can be worked out from CO₂ data, because the room volume V, airflow Q and CO₂ per person G only appear as ratios.
 
-I solved it with **forward Euler**, y~k+1~ = (1 - hλ)y~k~ + hgN~k~, and **backward Euler**, y~k+1~ = (y~k~ + hgN~k~)/(1 + hλ). I fitted λ from 75 nights of CO₂ decay in the empty room (a least-squares straight line through ln(C - C~b~), using only readings at least 15 ppm above background, which also skips any readings below it), then fitted the daytime λ and g on March-April weekdays. No CO₂ sensor shares a room with an occupancy sensor, so I used another room's headcount as a stand-in. Space 3e5a matched the CO₂ best (correlation 0.61) but has no March-April data, so I used the next best, 941f (0.50). This is a big assumption.
+I solved the equation with forward Euler, y~k+1~ = (1 - hλ)y~k~ + hgN~k~, and with backward Euler, y~k+1~ = (y~k~ + hgN~k~)/(1 + hλ). To find λ, I looked at 75 nights when the room was empty and CO₂ was falling, and fitted a straight line through ln(C - C~b~) using least squares. Only readings at least 15 ppm above background were used, which also avoids taking the log of readings below it. I then fitted the daytime λ and g using weekdays in March and April.
+
+One problem is that no CO₂ sensor is in the same room as an occupancy sensor, so I had to use another room's headcount as a stand-in. I compared all five rooms against the CO₂ after removing the usual weekly pattern from both. Space 3e5a matched best (correlation 0.61), but it has no data from March or April, when the model was fitted. The next best was space 941f (0.50), so I used that. This is the weakest assumption in the project, and I return to it in Section 4.
 
 ## 4. Validation method and results
 
-**What was validated.** (1) The forecast against baselines; (2) the numerical methods (verification); (3) the CO₂ model against measured CO₂ (validation).
+**What was validated.** I checked three things: whether the forecast beats the baselines, whether the numerical methods are working correctly (verification), and whether the CO₂ model matches real measurements (validation).
 
-**Why this method.** I split the data by time: train Nov 2023-Jun 2025, validate Jul-Oct 2025, test Nov 2025-Apr 2026. A random split would let the model see the hours either side of each test hour, and neighbouring hours are very similar (persistence alone gets R² = 0.42 on the validation data), so results would look better than they really are. A time split tests the model the way it would be used.
+**Why this method.** I split the data by time. The models were trained on November 2023 to June 2025, compared on July to October 2025, and tested once on November 2025 to April 2026. I avoided a random split because occupancy in one hour is very similar to the hour before (on the validation data, persistence alone has an R² of 0.42). With a random split, the model would see the hours on either side of each test hour, and the results would look better than they really are. A time split tests the model the way it would actually be used: predicting the future from the past.
 
-**Metrics and acceptance criteria.** MAE (average error in people) is my main metric, RMSE weights big misses more, and bias shows over- or under-prediction. To be accepted, a model had to beat persistence on validation with a 95% bootstrap confidence interval (Week 5.5) that excludes zero. I resampled whole days rather than hours, because errors on the same day are related. All five ML models met this rule on validation; the neural network beat persistence by 0.027 people (95% CI 0.016-0.039).
+**Metrics and acceptance criteria.** My main measure is the mean absolute error (MAE), the average size of the error in people, because it is easy to interpret. I also report the root mean square error (RMSE), which punishes big misses more, and the bias. To be accepted, a model had to beat persistence on the validation data, with a 95% bootstrap confidence interval (Week 5.5) that didn't include zero. I resampled whole days rather than single hours, because errors on the same day tend to go together. All five models passed. The neural network, for example, beat persistence by 0.027 people, with a confidence interval of 0.016 to 0.039.
 
-**Did validation influence model selection?** Yes. Cross-validation chose each model's settings and the validation period chose the model. The SVR (MAE 0.334), tree (0.336) and neural network (0.337) were tied within the confidence intervals, so I used validation RMSE to break the tie, which picked the neural network (0.836, against 0.877 for the tree and 0.958 for the SVR; see Table 2). I saved this choice in git **before** using the test set once.
+**Did validation influence model selection?** Yes. Cross-validation chose each model's settings, and the validation period chose between the models. The SVR, decision tree and neural network finished within 0.003 people of each other, which is inside the confidence intervals, so I broke the tie using RMSE. This picked the neural network (Table 2). I saved this decision in git **before** using the test data, so that the test result couldn't influence the choice.
 
-Table 1. Test results (Nov 2025-Apr 2026). The last column is the difference in MAE from persistence with its 95% bootstrap CI; negative means better than persistence.
+Table 1. Test results (November 2025 to April 2026). The last column shows the difference in MAE from persistence, with its 95% confidence interval. Negative means better than persistence.
 
 | Model | MAE (people) | RMSE | Bias | R² | MAE, weekdays 8am-6pm | MAE vs persistence (95% CI) |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -97,39 +103,43 @@ Table 1. Test results (Nov 2025-Apr 2026). The last column is the difference in 
 | Seasonal profile | 0.506 | 1.050 | +0.177 | 0.212 | 0.944 | +0.208 |
 | Global mean | 0.747 | 1.202 | +0.217 | -0.034 | 0.917 | +0.449 |
 
-The neural network beat persistence on test (95% CI excludes zero) by 5% on MAE and 15% on RMSE: real, but modest. The test results did not exactly match validation. The SVR had the lowest test MAE, but a higher RMSE and a negative bias (it under-predicts, the riskier direction for ventilation), and k-NN and ridge no longer beat persistence. Because the model had already been chosen and recorded, these results could not change the choice, which is exactly why the test set is only used once.
+**Results.** On the test data the neural network still beat persistence, by 5% on MAE and 15% on RMSE. The improvement is real but modest. The test results didn't exactly match validation. The SVR ended up with the lowest MAE, but it had a higher RMSE and tended to under-predict, which is the riskier mistake for ventilation. The k-nearest neighbours and ridge models no longer beat persistence at all. Because the neural network had already been chosen and recorded, none of this could change the decision, which is exactly the reason for only using the test data once.
 
-![Figure 2. A test week in G.20: measured headcount, persistence and neural network forecasts.](../results/figures/test_week_g20.png){width=88%}
+![Figure 2. A test week in room G.20, showing the measured headcount and the persistence and neural network forecasts.](../results/figures/test_week_g20.png){width=88%}
 
-Both models are about an hour late when people arrive (Figure 2). Neither predicted the 29-person spike on 12 March: the same hour the week before had only about 4 people, so it was a one-off event rather than a weekly class, and nothing in the inputs could have signalled it.
+Figure 2 shows what the forecasts look like in practice. Both models are about an hour late when people arrive, because they mostly learn from the previous hour. Neither predicted the 29-person spike on 12 March. The same hour the week before had only about four people, so this was a one-off event rather than a regular class, and nothing in the inputs could have signalled it.
 
-![Figure 3. Test error grouped by how many people were really in the room.](../results/figures/test_mae_by_band.png){width=58%}
+![Figure 3. Test error grouped by how many people were actually in the room.](../results/figures/test_mae_by_band.png){width=58%}
 
-Errors grow with occupancy (Figure 3), and the neural network **under-predicts busy hours** (by 1.15 people when 3-6 were present and 5.4 when more than 6 were). That is its main weakness, because it would under-ventilate at peak times.
+Figure 3 shows that the errors grow as rooms get busier, and that the neural network tends to **under-predict busy hours**: by about 1 person when 3 to 6 people were present, and by about 5 people when there were more than 6. This is its main weakness, because it would lead to under-ventilating rooms at their busiest.
 
-**What this means for HVAC.** On weekdays 7am-7pm, 2,285 of 5,792 test room-hours (39%) were empty. Turning HVAC down whenever the forecast is below 0.5 people, persistence would save 1,869 empty hours but wrongly turn down 17% of occupied hours. The neural network would save 1,503 and wrongly turn down only 6%: slightly less saving, but far fewer stuffy rooms. Because the forecast is late on arrivals, most of this value comes from turning HVAC down in hours that stay empty (unused rooms, lunch, after classes) rather than from pre-conditioning a room before the first person arrives. I couldn't convert these hours into kWh because room sizes and HVAC details aren't in the data.
+**What this means for HVAC.** On weekdays between 7am and 7pm, 2,285 of the 5,792 test room-hours (39%) were empty, yet a fixed timetable conditions all of them. Suppose HVAC is turned down whenever the forecast is below half a person. Persistence would turn down 1,869 of the empty hours, but would also wrongly turn down 17% of the occupied hours. The neural network would turn down 1,503 empty hours while wrongly turning down only 6% of occupied ones. It saves slightly less energy but leaves far fewer people in an unventilated room. Because the forecast is late on arrivals, most of this benefit comes from turning HVAC down in hours that stay empty, such as unused rooms, lunch breaks and after classes, rather than from preparing a room before the first person arrives. I couldn't convert these hours into energy savings, because room sizes and HVAC details aren't in the data.
 
-**Verification of the numerical methods.**
+**Verification of the numerical methods.** Before trusting any results, I checked that each numerical method was doing what it should:
 
-- *Resampling:* total person-hours before and after splitting into hours agree to 1.2 × 10⁻¹⁶ (machine precision), and a hand-worked example (empty 50 min, 3 people for 10 min = 0.5) comes out exactly.
-- *ODE solver (Figure 4):* both Euler methods match the exact solution y(t) = y~ss~ + (y~0~ - y~ss~)e^-λt^. Halving the time step halves the error (first order). At hλ = 2.5, forward Euler blows up and backward Euler stays stable, matching theory.
-- *Fitting:* fake data made with known g and λ is fitted back exactly (manufactured solution).
+- **Resampling.** The total number of person-hours was the same before and after splitting the data into hours, to within 1.2 × 10⁻¹⁶, which is the limit of computer precision. A hand-worked example (an empty room for 50 minutes, then 3 people for 10 minutes, which should average 0.5) also came out exactly right.
+- **ODE solver.** Both Euler methods matched the exact solution of the ODE for a constant number of people, y(t) = y~ss~ + (y~0~ - y~ss~)e^-λt^. Halving the time step halved the error, as expected for a first-order method (Figure 4, left). When hλ = 2.5, forward Euler blew up while backward Euler stayed stable, just as the theory predicts (Figure 4, right).
+- **Parameter fitting.** I generated synthetic CO₂ data from known values of g and λ, and checked that the fitting code gave back exactly those values (a manufactured solution).
 
-![Figure 4. Left: error against time step for both Euler methods. Right: forward Euler is unstable when hλ > 2; backward Euler is not.](../results/figures/co2_verification.png){width=86%}
+![Figure 4. Left: error against time step for both Euler methods. Right: forward Euler becomes unstable when hλ > 2, while backward Euler does not.](../results/figures/co2_verification.png){width=86%}
 
-**Validation of the CO₂ model.** The daytime λ = 0.95 per hour (about one air change per hour) is normal for a mechanically ventilated room. The night value, 0.04 per hour, is lower than typical air leakage, which suggests the room is well sealed overnight or the background level drifts, so I treat it with caution. The fitted g = 41 ppm per hour per person implies a room of about 450 m³ using 0.0052 L/s of CO₂ per seated adult [6]. That is plausible, but g also absorbs any difference in size between G.38 and the stand-in room, so it is only a rough check. With 10-minute steps hλ = 0.16, well under the stability limit of 2. On 31 held-out days the CO₂ error was 38 ppm, against 82 ppm if people are ignored. That is a weak comparison, so it mainly shows that occupancy explains a large part of the CO₂ changes (Figure 5).
+**Validation of the CO₂ model.** The fitted daytime ventilation rate, λ = 0.95 per hour, means the air in the room is replaced about once an hour, which is normal for a mechanically ventilated room. The overnight value of 0.04 per hour is lower than typical air leakage, so the room may be well sealed at night or the background level may drift, and I treat it with caution. The fitted g of 41 ppm per hour per person implies a room of about 450 m³, using the published figure of 0.0052 litres of CO₂ per second for a seated adult [6]. That is plausible, but g also absorbs any size difference between G.38 and the stand-in room, so it is only a rough check. With 10-minute steps, hλ = 0.16, well under the stability limit of 2, so even forward Euler is stable here.
 
-![Figure 5. Held-out days: measured CO₂ against the model driven by the stand-in headcount.](../results/figures/co2_validation.png){width=82%}
+On 31 days that weren't used for fitting, the model's CO₂ error was 38 ppm, compared with 82 ppm if people are ignored (Figure 5). That is a weak comparison, so it mainly shows that occupancy explains a large part of the change in CO₂.
 
-The model drops too low before 8am because it assumes the daytime ventilation rate all day, which is an error in the model's assumptions, not the solver. Working backwards from CO₂ to headcount with central differences (Week 7.1) followed the stand-in room's headcount (correlation 0.63) but had an error of 0.67 people, because differentiating noisy data amplifies the 8 ppm sensor noise.
+![Figure 5. Held-out days: measured CO₂ compared with the model driven by the stand-in room's headcount.](../results/figures/co2_validation.png){width=82%}
 
-**What validation cannot establish.** Performance in other buildings or seasons, whether the occupancy sensors count correctly (there is nothing independent to compare against), and G.38's true occupancy, since the CO₂ test uses another room's headcount.
+The model drops too low before 8am because it assumes the daytime ventilation rate all day, when the HVAC actually switches on in the morning. This is a problem with the model's assumptions, not with the solver. I also tried working backwards from CO₂ to headcount using central differences (Week 7.1). The result followed the stand-in room's headcount (correlation 0.63), but with an average error of 0.67 people, because taking derivatives of noisy data amplifies the noise.
+
+**What validation cannot establish.** These results don't show how the model would perform in other buildings or seasons. They can't show whether the occupancy sensors themselves count correctly, because there is nothing independent to compare them against. And they can't show G.38's true occupancy, because the CO₂ test relies on another room's headcount.
 
 ## 5. Comparison and optimisation
 
 ### 5.1 Alternative solutions
 
-Table 2. Comparison on the validation period (used for model selection).
+Table 2 compares all of the approaches on the validation data, which is the data the choice was based on.
+
+Table 2. Comparison on the validation period.
 
 | Approach | Val MAE | Val RMSE | CV MAE (mean ± std) | Train time | Predict time | Interpretable? |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -140,9 +150,11 @@ Table 2. Comparison on the validation period (used for model selection).
 | Ridge regression | 0.350 | 0.878 | 0.381 ± 0.077 | 0.05 s | 0.01 s | High |
 | Persistence | 0.364 | 0.992 | - | - | instant | High |
 
-The spread between CV folds (about ±0.07-0.11) is bigger than the gaps between models, so they perform similarly. SVR and k-NN are slow to predict because they compare each new point with stored training data, and a Gaussian process would need about 23 GB of memory for 54,000 rows, so I didn't use one. I chose the neural network for its lowest RMSE and fast predictions; the decision tree would be a good choice if explaining the model mattered more.
+The variation between cross-validation folds is larger than the differences between models, so in practice they all perform fairly similarly. The SVR and k-nearest neighbours are slow at making predictions, because they compare every new point with the stored training data. A Gaussian process would have needed about 23 GB of memory for 54,000 training rows, so I didn't use one. I chose the neural network because it had the lowest RMSE and makes predictions quickly. The decision tree would be a good alternative if being able to explain the model mattered more.
 
 ### 5.2 Sensitivity analysis
+
+The outage limits from Section 2 were my own judgment, so I tested whether changing them would change the results (Table 3).
 
 Table 3. Sensitivity to the outage limits (validation data).
 
@@ -153,11 +165,13 @@ Table 3. Sensitivity to the outage limits (validation data).
 | 4 h / 24 h | 59,174 | 0.364 | 0.335 |
 | 1 h / 12 h | 59,027 | 0.376 | 0.350 |
 
-Person-hours is the total of people × hours over all rooms. Each setting slightly changes which hours exist, so the MAEs are on slightly different samples, but the occupied-room limit barely changes anything, so the results don't depend on that choice. A 12-hour empty limit throws away about 4,000 genuinely quiet weekend hours, so I kept 24 hours. For the CO₂ model, changing the background level from 422 to 445 ppm changed g by about ±4% but the daytime λ by about ±13%, so λ is the most sensitive physics parameter.
+Person-hours is the total number of people multiplied by hours across all rooms. Each setting slightly changes which hours are included, but the limit for occupied rooms makes almost no difference, so the results don't depend on that choice. Making the empty-room limit stricter (12 hours) throws away about 4,000 genuinely quiet weekend hours, so I kept 24 hours. For the CO₂ model, I varied the background level between 422 and 445 ppm. This changed g by about 4% but the daytime λ by about 13%, so λ is the most sensitive parameter in the physics model.
 
-### 5.3 Performance analysis (Week 2.1)
+### 5.3 Performance analysis
 
-**Machine limits.** Following Week 2.1 [1], the theoretical peak is F~T~ = 2 cores × 2.1 GHz × 32 FLOPs/cycle = 134 GFLOP/s. I couldn't install likwid, so I measured the limits: a large matrix multiply reached 65 GFLOP/s, and a triad (A = B × C + D) on arrays bigger than the cache reached 15.5 GB/s. That gives a machine balance of 4.2 FLOPs/byte. All timings are the mean ± std of 7 `timeit` repeats, because times on a shared machine vary.
+**Machine limits.** Following the method from Week 2.1 [1], the theoretical peak speed of the computer is F~T~ = 2 cores × 2.1 GHz × 32 FLOPs per cycle = 134 GFLOP/s. I couldn't install likwid, so I measured the real limits myself. A large matrix multiplication reached 65 GFLOP/s, and a triad test (A = B × C + D) on arrays too big for the cache reached a memory bandwidth of 15.5 GB/s. Dividing one by the other gives a machine balance of 4.2 FLOPs per byte. Timings on a shared machine vary, so every time below is the average of 7 repeats with `timeit`, with its standard deviation.
+
+Table 4. Arithmetic intensity and timing of the main calculations.
 
 | Code | FLOPs / bytes per step | Arithmetic intensity | Time | % of roofline |
 | --- | --- | --- | --- | --- |
@@ -165,28 +179,28 @@ Person-hours is the total of people × hours over all rooms. Each setting slight
 | Backward Euler, `lfilter` (10⁶ steps) | 3 / 16 | 0.19 | 7.0 ± 1.0 ms | 15% |
 | Neural network prediction (117k rows\*) | 1,120 / 136 | 8.2 | 70 ± 0.9 ms | 2.9% |
 
-\*The validation set repeated 10 times, to get a longer and more stable timing.
+\*The validation set repeated 10 times, to give a longer and more stable timing.
 
-![Figure 6. Roofline plot (Williams et al. [5]) with the measured machine limits and my code.](../results/figures/roofline.png){width=60%}
+![Figure 6. Roofline plot [5] with the measured machine limits and the project's code.](../results/figures/roofline.png){width=60%}
 
-**Baseline vs improved.** On the roofline (Figure 6), the solver's low arithmetic intensity puts it under the memory-bandwidth limit, but the Python loop only reached 0.4% of that limit. line_profiler showed all the time was in the loop itself, about 0.7 µs per step, so the bottleneck was Python's overhead, not the hardware. Backward Euler here is just "new value = a × old value + b × input", and SciPy's `lfilter` [4] runs exactly that loop in C. It gives identical answers (tests agree to 10⁻¹²) and is **35-38 times faster**, still scaling linearly with the number of steps. It still only reaches 15% of the bandwidth limit because each step has to wait for the previous one, so the real limit is how fast one step can follow another, not memory. On this 15-week dataset the loop only takes milliseconds, so the speed-up matters when the model is fitted many times or scaled to many sensors over several years. The neural network has a higher intensity (8.2), so it is compute-bound, but its small layers mean it only reaches 2.9% of peak.
+**Baseline vs improved.** The backward Euler solver does very little arithmetic for the amount of data it moves, so on the roofline (Figure 6) it sits in the memory-limited region. However, the original Python loop only reached 0.4% of that limit. Using line_profiler, I found that all of the time was spent inside the loop itself, about 0.7 microseconds per step, so the bottleneck was Python's overhead rather than the hardware. Backward Euler for this equation is simply "new value = a × old value + b × input", and SciPy's `lfilter` function [4] runs exactly that loop in compiled C. It gives identical answers, agreeing with the Python version to 10⁻¹², and is **35 to 38 times faster**, while still scaling linearly with the number of steps. It still only reaches 15% of the bandwidth limit, because each step has to wait for the one before it, so the real limit is how quickly one step can follow another rather than memory. On this 15-week dataset the loop only takes milliseconds either way, so the speed-up matters most if the model is fitted many times or scaled up to many sensors over several years. The neural network does much more arithmetic per byte (8.2), which puts it in the compute-limited region, but its small layers mean it only reaches 2.9% of peak.
 
-**Precision.** float32 changed the solver's output by only 4 × 10⁻⁷ (far below the 8 ppm sensor noise) but wasn't any faster, because each step has to wait for the last one, so I kept float64.
+**Precision.** Switching from float64 to float32 changed the solver's results by only 4 × 10⁻⁷, far less than the 8 ppm sensor noise. It wasn't any faster, though, because each step still has to wait for the last one, so I kept float64.
 
 ## 6. Limitations and lessons learned
 
-**Limitations.** The model under-predicts busy hours, so it would need a safety margin in practice. It is about an hour late on arrivals, so it helps more with turning HVAC down in empty hours than with pre-conditioning before people arrive. It has no timetable information, so it can't see one-off events coming. Only five rooms were available, two identified, all from one sensor device. The occupancy sensors are assumed to be correct. The CO₂ model assumes perfect mixing and one daytime ventilation rate, and uses another room's headcount.
+**Limitations.** The forecast under-predicts busy hours, so it would need a safety margin in practice. It is about an hour late when people arrive, so it is more useful for turning HVAC down in empty hours than for preparing a room before people get there. It has no timetable information, so it can't anticipate one-off events. The data only covered five rooms, two of them identified, all from one sensor device, and I had to assume the occupancy sensors count correctly. The CO₂ model assumes perfect mixing and a single daytime ventilation rate, and it relies on another room's headcount.
 
 **Lessons learned.**
 
 1. **Check the data first.** Most of the listed sensors were missing or broken, and the frozen ones only showed up in the measurement times.
-2. **How you average matters.** Averaging rows instead of time overestimated occupancy by 1.4-2.1 times in a typical hour, and over 12 times in one hour in ten.
-3. **Simple baselines are hard to beat.** Persistence already captured most of the pattern; ML added 5-15%. It's better to report that honestly than oversell it.
+2. **How you average matters.** Averaging rows instead of averaging over time overestimated occupancy by 1.4 to 2.1 times in a typical hour, and by more than 12 times in one hour in ten.
+3. **Simple baselines are hard to beat.** Persistence already captured most of the pattern, and machine learning only improved on it by 5 to 15%. It is better to report that honestly than to oversell the model.
 4. **Protect the test set.** The SVR happened to do slightly better on test MAE, but because the model was chosen before testing, the test result is an honest check rather than a second chance to pick.
-5. **Verification and validation are different.** The solver was verified exactly, but the model was still wrong before 8am because of an assumption.
-6. **Profile before optimising.** The solver looked memory-limited on paper, but profiling showed Python overhead was the real problem.
+5. **Verification and validation are different.** The solver was verified exactly, but the model was still wrong before 8am because of one of its assumptions.
+6. **Profile before optimising.** The solver looked memory-limited on paper, but profiling showed that Python's overhead was the real problem.
 
-**Improvements.** Add the university timetable as an input; smooth the CO₂ data before working backwards to headcount; train the model to lean towards over-predicting, since under-ventilating is worse; and put a CO₂ sensor in the same room as an occupancy sensor to test the physics properly.
+**Improvements.** The most useful next steps would be to add the university timetable as an input, to smooth the CO₂ data before working backwards to headcount, to train the model to lean towards over-predicting (since under-ventilating is the worse mistake), and to put a CO₂ sensor in the same room as an occupancy sensor so the physics model can be tested properly.
 
 ## 7. AI use and reflection
 
