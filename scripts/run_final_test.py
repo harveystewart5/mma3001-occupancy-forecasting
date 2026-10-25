@@ -22,8 +22,14 @@ from occupancy.plotting import INK, NEUTRAL, SERIES, style
 
 PROC, RES, FIG = Path("data/processed"), Path("results"), Path("results/figures")
 VAL_START, TEST_START = "2025-07-01", "2025-11-01"
+# Settings chosen by cross-validation in run_models. The MLP was selected on
+# validation (results/model_selection.md); the other families are scored on
+# test for reporting only and cannot change that choice.
 SELECTED = {"Neural network (MLP)": {"hidden_layer_sizes": (32,), "alpha": 0.01},
-            "Decision tree": {"max_depth": 14, "min_samples_leaf": 100}}
+            "Decision tree": {"max_depth": 14, "min_samples_leaf": 100},
+            "RBF SVR": {"C": 1.0, "epsilon": 0.1, "gamma": "scale"},
+            "k-nearest neighbours": {"n_neighbors": 20},
+            "Ridge regression": {"alpha": 0.1}}
 NAMES = {"cca1ac3e": "G.20", "227f1068": "G.25"}
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
