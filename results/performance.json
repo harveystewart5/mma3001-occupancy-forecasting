@@ -15,7 +15,7 @@
     "flops_per_elem": 2,
     "GBs": 15.547392019495405,
     "GFLOPs": 0.6478080008123086,
-    "AI": 0.041666666666666664
+    "arithmetic_intensity": 0.041666666666666664
   },
   "machine_balance_meas_FLOP_per_B": 4.197961702510156,
   "kernels": {
@@ -24,7 +24,7 @@
       "std_s": 0.0006010379513273826,
       "flops": 4000000,
       "bytes": 16000000,
-      "AI": 0.25,
+      "arithmetic_intensity": 0.25,
       "GFLOPs": 0.016384181809519133,
       "bound_by_roofline": "memory",
       "roofline_limit_GFLOPs": 3.886848004873851,
@@ -36,7 +36,7 @@
       "flops": 3000000,
       "bytes": 16000000,
       "speedup_vs_loop": 34.945384432057004,
-      "AI": 0.1875,
+      "arithmetic_intensity": 0.1875,
       "GFLOPs": 0.4294136489537711,
       "bound_by_roofline": "memory",
       "roofline_limit_GFLOPs": 2.9151360036553884,
@@ -47,7 +47,7 @@
       "std_s": 0.0009171038800647085,
       "flops": 130771200,
       "bytes": 15879360,
-      "AI": 8.235294117647058,
+      "arithmetic_intensity": 8.235294117647058,
       "GFLOPs": 1.8600752871562114,
       "bound_by_roofline": "compute",
       "roofline_limit_GFLOPs": 65.26735627175374,

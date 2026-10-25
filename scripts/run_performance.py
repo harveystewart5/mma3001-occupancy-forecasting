@@ -82,7 +82,7 @@ def main() -> None:
 
     t, s = bench(triad, repeat=5)
     out["triad"] = {"elements": m, "time_s": t, "std_s": s, "bytes_per_elem": 48, "flops_per_elem": 2,
-                    "GBs": 48 * m / t / 1e9, "GFLOPs": 2 * m / t / 1e9, "AI": 2 / 48}
+                    "GBs": 48 * m / t / 1e9, "GFLOPs": 2 * m / t / 1e9, "arithmetic_intensity": 2 / 48}
     del b, c, d, a
     B_meas = out["triad"]["GBs"]
     out["machine_balance_meas_FLOP_per_B"] = out["peak_matmul"]["GFLOPs"] / B_meas
@@ -111,10 +111,10 @@ def main() -> None:
     kernels["MLP predict"] = {"time_s": t, "std_s": s, "flops": len(Xv) * (2 * d_in * 32 + 32 + 64),
                               "bytes": len(Xv) * (d_in + 1) * 8}
     for k in kernels.values():
-        k["AI"] = k["flops"] / k["bytes"]
+        k["arithmetic_intensity"] = k["flops"] / k["bytes"]
         k["GFLOPs"] = k["flops"] / k["time_s"] / 1e9
-        k["bound_by_roofline"] = "memory" if k["AI"] < out["machine_balance_meas_FLOP_per_B"] else "compute"
-        k["roofline_limit_GFLOPs"] = min(out["peak_matmul"]["GFLOPs"], B_meas * k["AI"])
+        k["bound_by_roofline"] = "memory" if k["arithmetic_intensity"] < out["machine_balance_meas_FLOP_per_B"] else "compute"
+        k["roofline_limit_GFLOPs"] = min(out["peak_matmul"]["GFLOPs"], B_meas * k["arithmetic_intensity"])
         k["fraction_of_roofline"] = k["GFLOPs"] / k["roofline_limit_GFLOPs"]
     out["kernels"] = kernels
 
@@ -153,13 +153,13 @@ def main() -> None:
 
     # ---- 8. Roofline figure ----
     style()
-    ai = np.logspace(-2.5, 2.5, 200)
+    intensity = np.logspace(-2.5, 2.5, 200)
     peak, ft = out["peak_matmul"]["GFLOPs"], out["F_T_GFLOPs"]
     fig, ax = plt.subplots(figsize=(7.5, 4.6))
-    ax.loglog(ai, np.minimum(ft, B_meas * ai), color=NEUTRAL, lw=1.2, ls="--", label=f"Theoretical F_T = {ft:.0f} GFLOP/s")
-    ax.loglog(ai, np.minimum(peak, B_meas * ai), color=INK, lw=2, label=f"Measured roof: {peak:.0f} GFLOP/s, {B_meas:.1f} GB/s")
-    pts = [("Triad (bandwidth test)", out["triad"]["AI"], out["triad"]["GFLOPs"], NEUTRAL)]
-    pts += [(name, k["AI"], k["GFLOPs"], col) for (name, k), col in
+    ax.loglog(intensity, np.minimum(ft, B_meas * intensity), color=NEUTRAL, lw=1.2, ls="--", label=f"Theoretical F_T = {ft:.0f} GFLOP/s")
+    ax.loglog(intensity, np.minimum(peak, B_meas * intensity), color=INK, lw=2, label=f"Measured roof: {peak:.0f} GFLOP/s, {B_meas:.1f} GB/s")
+    pts = [("Triad (bandwidth test)", out["triad"]["arithmetic_intensity"], out["triad"]["GFLOPs"], NEUTRAL)]
+    pts += [(name, k["arithmetic_intensity"], k["GFLOPs"], col) for (name, k), col in
             zip(kernels.items(), [SERIES[1], SERIES[0], SERIES[2]])]
     markers = ["s", "o", "o", "D"]
     offsets = [((-10, 6), "right"), ((8, -12), "left"), ((8, -4), "left"), ((8, -4), "left")]

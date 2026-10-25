@@ -1,7 +1,7 @@
 Timer unit: 1e-09 s
 
 Total time: 0.152545 s
-File: /home/claude/mma3001-occupancy/occupancy/physics.py
+File: occupancy/physics.py
 Function: simulate at line 54
 
 Line #      Hits         Time  Per Hit   % Time  Line Contents
