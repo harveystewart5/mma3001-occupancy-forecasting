@@ -241,4 +241,4 @@ Table 4. Arithmetic intensity and timing of the main calculations.
 6. Persily, A. and de Jonge, L. (2017). Carbon dioxide generation rates for building occupants. *Indoor Air*, 27(5), 868-879.
 7. Anthropic (2026). Claude Opus 5.5, accessed through claude.ai, 24-25 October 2026.
 
-GitHub repository: **[add link before submission]** (includes the HTML code documentation in `docs/api` and the test report in `docs/test_report.html`).
+GitHub repository: <https://github.com/harveystewart5/mma3001-occupancy-forecasting> (includes the HTML code documentation in `docs/api` and the test report in `docs/test_report.html`).
