@@ -205,6 +205,7 @@ Table 4. Arithmetic intensity and timing of the main calculations.
 ## 7. AI use and reflection
 
 **Tools used.** Claude (Anthropic, Claude Opus 5.5) through claude.ai, 24-25 October 2026.
+
 **What it was used for and level of contribution.**
 
 | Task | AI contribution | What I did |
