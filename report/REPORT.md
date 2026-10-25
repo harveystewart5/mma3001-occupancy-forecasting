@@ -214,7 +214,7 @@ Table 4. Arithmetic intensity and timing of the main calculations.
 | Writing the code | High | Set the requirements, reviewed outputs, ran the pipeline |
 | Choosing methods | Medium | Chose the 1-hour forecast and scope, and kept it within the unit's content |
 | Tests, docs, performance | High | Checked tests use known answers and reviewed every figure |
-| Report | High (drafting) | Directed the structure, tone and length, checked the numbers against `results/`, and wrote this section |
+| Report | Medium (drafting) | Directed the structure, tone and length, checked the numbers against `results/`, and wrote this section |
 
 **How I checked it.** Tests with known answers (the 0.5-person example, the exact ODE solution, manufactured data), looking at raw data and every figure, and comparing claims with the source and git files.
 
