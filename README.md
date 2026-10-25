@@ -64,8 +64,8 @@ Tested with Python 3.13 on Linux (2 vCPU, 7 GB RAM). About 3 GB of free RAM is n
 for the resampling stage.
 
 ```bash
-git clone <this-repo-url>
-cd mma3001-occupancy
+git clone https://github.com/harveystewart5/mma3001-occupancy-forecasting.git
+cd mma3001-occupancy-forecasting
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
