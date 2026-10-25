@@ -216,8 +216,6 @@ Table 4. Arithmetic intensity and timing of the main calculations.
 | Tests, docs, performance | High | Checked tests use known answers and reviewed every figure |
 | Report | High (drafting) | Directed the structure, tone and length, checked the numbers against `results/`, and wrote this section |
 
-**Why I used it.** I had about two days, so I used AI for the coding and drafting and spent my time understanding and checking the methods.
-
 **How I checked it.** Tests with known answers (the 0.5-person example, the exact ODE solution, manufactured data), looking at raw data and every figure, and comparing claims with the source and git files.
 
 **Errors it made.**
